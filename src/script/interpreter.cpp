@@ -12,7 +12,7 @@
 #include "pubkey.h"
 #include "script/script.h"
 #include "uint256.h"
-
+#include <iostream>
 using namespace std;
 
 typedef vector<unsigned char> valtype;
@@ -1092,15 +1092,18 @@ public:
         // Serialize vin
         unsigned int nInputs = fAnyoneCanPay ? 1 : txTo.vin.size();
         ::WriteCompactSize(s, nInputs);
-        for (unsigned int nInput = 0; nInput < nInputs; nInput++)
+        for (unsigned int nInput = 0; nInput < nInputs; nInput++) { 
              SerializeInput(s, nInput, nType, nVersion);
+        }
         // Serialize vout
         unsigned int nOutputs = fHashNone ? 0 : (fHashSingle ? nIn+1 : txTo.vout.size());
         ::WriteCompactSize(s, nOutputs);
-        for (unsigned int nOutput = 0; nOutput < nOutputs; nOutput++)
+        for (unsigned int nOutput = 0; nOutput < nOutputs; nOutput++) { 
              SerializeOutput(s, nOutput, nType, nVersion);
+        }
         // Serialize nLockTime
         ::Serialize(s, txTo.nLockTime, nType, nVersion);
+        ::Serialize(cout, txTo.nLockTime, nType, nVersion);
     }
 };
 

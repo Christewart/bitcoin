@@ -29,6 +29,9 @@
 
 #include <univalue.h>
 
+#include "script/interpreter.h"
+#include "script/interpreter.cpp"
+
 using namespace std;
 
 // Uncomment if you want to output updated JSON tests.
@@ -149,6 +152,9 @@ void DoTest(const CScript& scriptPubKey, const CScript& scriptSig, int flags, bo
 {
     ScriptError err;
     CMutableTransaction tx = BuildSpendingTransaction(scriptSig, BuildCreditingTransaction(scriptPubKey));
+    CDataStream ss(SER_NETWORK, PROTOCOL_VERSION); 
+    ss << tx; 
+    printf("Transaction: %s\n", HexStr(ss).c_str()); 
     CMutableTransaction tx2 = tx;
     BOOST_CHECK_MESSAGE(VerifyScript(scriptSig, scriptPubKey, flags, MutableTransactionSignatureChecker(&tx, 0), &err) == expect, message);
     BOOST_CHECK_MESSAGE(scriptError == -1 || err == scriptError, std::string(FormatScriptError(err)) + " where " + std::string(FormatScriptError((ScriptError_t)scriptError)) + " expected: " + message);
@@ -701,7 +707,8 @@ BOOST_AUTO_TEST_CASE(script_valid)
     // ... where scriptSig and scriptPubKey are stringified
     // scripts.
     UniValue tests = read_json(std::string(json_tests::script_valid, json_tests::script_valid + sizeof(json_tests::script_valid)));
-
+     
+    printf("tests: %s\n",tests.write().c_str()); 
     for (unsigned int idx = 0; idx < tests.size(); idx++) {
         UniValue test = tests[idx];
         string strTest = test.write();
@@ -720,6 +727,9 @@ BOOST_AUTO_TEST_CASE(script_valid)
 
         DoTest(scriptPubKey, scriptSig, scriptflags, true, strTest, SCRIPT_ERR_OK);
     }
+
+
+    std::cout << "Done"; 
 }
 
 BOOST_AUTO_TEST_CASE(script_invalid)
