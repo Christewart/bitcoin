@@ -4,7 +4,10 @@
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
 #include "interpreter.h"
-
+#include <iostream>
+#include "utilstrencodings.h"
+#include "streams.h" 
+#include "core_io.h"
 #include "primitives/transaction.h"
 #include "crypto/ripemd160.h"
 #include "crypto/sha1.h"
@@ -251,7 +254,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
         return set_error(serror, SCRIPT_ERR_SCRIPT_SIZE);
     int nOpCount = 0;
     bool fRequireMinimal = (flags & SCRIPT_VERIFY_MINIMALDATA) != 0;
-
+    cout << "Script being executed: " << ScriptToAsmStr(script) << std::endl; 
     try
     {
         while (pc < pend)
@@ -269,7 +272,16 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
             // Note how OP_RESERVED does not count towards the opcode limit.
             if (opcode > OP_16 && ++nOpCount > MAX_OPS_PER_SCRIPT)
                 return set_error(serror, SCRIPT_ERR_OP_COUNT);
-
+            cout << "Op being executed: " << GetOpName(opcode) << "\n";
+            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION); 
+            for (unsigned int i = 0; i < stack.size(); i++) { 
+              for (unsigned int j = 0;  j < stack[i].size(); j++) {
+                ss << stack[i][j];  
+              }
+              ss << ' '; 
+            }
+            printf("Stack: %s\n", HexStr(ss).c_str());
+           
             if (opcode == OP_CAT ||
                 opcode == OP_SUBSTR ||
                 opcode == OP_LEFT ||
@@ -867,10 +879,12 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
 
                     // Subset of script starting at the most recent codeseparator
                     CScript scriptCode(pbegincodehash, pend);
-
+                    //std::cout << ScriptToAsmStr(scriptCode); 
+                    //std::cout << "\n============================================================\n"; 
                     // Drop the signature, since there's no way for a signature to sign itself
-                    scriptCode.FindAndDelete(CScript(vchSig));
-
+                    //scriptCode.FindAndDelete(CScript(vchSig));
+                    //std::cout << ScriptToAsmStr(scriptCode) << "\n"; 
+                    //printf("script code after find and delete: %s", ScriptToAsmStr(scriptCode.c_str(),false)); 
                     if (!CheckSignatureEncoding(vchSig, flags, serror) || !CheckPubKeyEncoding(vchPubKey, flags, serror)) {
                         //serror is set
                         return false;

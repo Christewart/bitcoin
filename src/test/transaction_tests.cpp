@@ -111,7 +111,9 @@ BOOST_AUTO_TEST_CASE(tx_valid)
             UniValue inputs = test[0].get_array();
             bool fValid = true;
 	    for (unsigned int inpIdx = 0; inpIdx < inputs.size(); inpIdx++) {
-	        const UniValue& input = inputs[inpIdx];
+        const UniValue& input = inputs[inpIdx];
+	      cout << "Input: " << input.write() << "\n"; 
+        //cout << "ScriptPubKey: " << ScriptToAsmStr(  
                 if (!input.isArray())
                 {
                     fValid = false;
