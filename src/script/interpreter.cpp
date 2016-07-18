@@ -13,6 +13,11 @@
 #include "script/script.h"
 #include "uint256.h"
 
+#include <iostream> 
+#include "core_io.h"
+#include "util.h"
+#include "utilstrencodings.h"
+#include "streams.h"
 using namespace std;
 
 typedef vector<unsigned char> valtype;
@@ -1185,7 +1190,9 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
-    // Serialize and hash
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
+    stream << txTmp << nHashType; 
+    printf("Serialized Transaction for sig: %s\n", HexStr(stream).c_str());
     CHashWriter ss(SER_GETHASH, 0);
     ss << txTmp << nHashType;
     return ss.GetHash();
