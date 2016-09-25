@@ -23,6 +23,11 @@ namespace rc {
         std::tie(nVersion,hashPrevBlock, hashMerkleRoot, nTime,nBits,nNonce) = headerPrimitives;
         CBlockHeader header; 
         header.nVersion = nVersion;
+        header.hashPrevBlock = hashPrevBlock; 
+        header.hashMerkleRoot = hashMerkleRoot; 
+        header.nTime = nTime; 
+        header.nBits = nBits; 
+        header.nNonce = nNonce; 
         return header; 
       });
     };
