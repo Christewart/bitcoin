@@ -34,6 +34,7 @@ BITCOIN_TESTS =\
   test/bech32_tests.cpp \
   test/bip32_tests.cpp \
   test/blockencodings_tests.cpp \
+  test/block_properties.cpp \ 
   test/bloom_tests.cpp \
   test/bswap_tests.cpp \
   test/checkqueue_tests.cpp \
@@ -89,8 +90,9 @@ BITCOIN_TESTS =\
   test/uint256_tests.cpp \
   test/univalue_tests.cpp \
   test/util_tests.cpp \
-  test/gen/crypto_gen.h \ 
-  test/gen/bloom_gen.h
+  test/gen/crypto_gen.h \
+  test/gen/bloom_gen.h \
+  test/gen/block_gen.h
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
