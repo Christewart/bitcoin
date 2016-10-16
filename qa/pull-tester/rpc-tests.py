@@ -77,8 +77,6 @@ for arg in sys.argv[1:]:
 #Set env vars
 if "BITCOIND" not in os.environ:
     os.environ["BITCOIND"] = BUILDDIR + '/src/bitcoind' + EXEEXT
-if "BITCOINCLI" not in os.environ:
-    os.environ["BITCOINCLI"] = BUILDDIR + '/src/bitcoin-cli' + EXEEXT
 
 if EXEEXT == ".exe" and "-win" not in opts:
     # https://github.com/bitcoin/bitcoin/commit/d52802551752140cf41f0d9a225a43e84404d3e9
@@ -94,18 +92,19 @@ if not (ENABLE_WALLET == 1 and ENABLE_UTILS == 1 and ENABLE_BITCOIND == 1):
 if ENABLE_ZMQ:
     try:
         import zmq
-    except ImportError as e:
-        print("WARNING: \"import zmq\" failed. Set ENABLE_ZMQ=0 or " \
-            "to run zmq tests, see dependency info in /qa/README.md.")
-        ENABLE_ZMQ=0
+    except ImportError:
+        print("ERROR: \"import zmq\" failed. Set ENABLE_ZMQ=0 or "
+              "to run zmq tests, see dependency info in /qa/README.md.")
+        # ENABLE_ZMQ=0
+        raise
 
-#Tests
 testScripts = [
     # longest test should go first, to favor running tests in parallel
     'p2p-fullblocktest.py',
     'walletbackup.py',
     'bip68-112-113-p2p.py',
     'wallet.py',
+    'wallet-accounts.py',
     'wallet-hd.py',
     'wallet-dump.py',
     'listtransactions.py',
@@ -144,6 +143,7 @@ testScripts = [
     'importprunedfunds.py',
     'signmessages.py',
     'p2p-compactblocks.py',
+    'nulldummy.py',
 ]
 if ENABLE_ZMQ:
     testScripts.append('zmq_test.py')
@@ -216,8 +216,8 @@ def runtests():
         time_sum += duration
 
         print('\n' + BOLD[1] + name + BOLD[0] + ":")
-        print(stdout)
-        print('stderr:\n' if not stderr == '' else '', stderr)
+        print('' if passed else stdout + '\n', end='')
+        print('' if stderr == '' else 'stderr:\n' + stderr + '\n', end='')
         results += "%s | %s | %s s\n" % (name.ljust(max_len_name), str(passed).ljust(6), duration)
         print("Pass: %s%s%s, Duration: %s s\n" % (BOLD[1], passed, BOLD[0], duration))
     results += BOLD[1] + "\n%s | %s | %s s (accumulated)" % ("ALL".ljust(max_len_name), str(all_passed).ljust(6), time_sum) + BOLD[0]
@@ -252,21 +252,27 @@ class RPCTestHandler:
             self.num_running += 1
             t = self.test_list.pop(0)
             port_seed = ["--portseed=%s" % len(self.test_list)]
+            log_stdout = tempfile.SpooledTemporaryFile(max_size=2**16)
+            log_stderr = tempfile.SpooledTemporaryFile(max_size=2**16)
             self.jobs.append((t,
                               time.time(),
                               subprocess.Popen((RPC_TESTS_DIR + t).split() + self.flags + port_seed,
                                                universal_newlines=True,
-                                               stdout=subprocess.PIPE,
-                                               stderr=subprocess.PIPE)))
+                                               stdout=log_stdout,
+                                               stderr=log_stderr),
+                              log_stdout,
+                              log_stderr))
         if not self.jobs:
             raise IndexError('pop from empty list')
         while True:
             # Return first proc that finishes
             time.sleep(.5)
             for j in self.jobs:
-                (name, time0, proc) = j
+                (name, time0, proc, log_out, log_err) = j
                 if proc.poll() is not None:
-                    (stdout, stderr) = proc.communicate(timeout=3)
+                    log_out.seek(0), log_err.seek(0)
+                    [stdout, stderr] = [l.read().decode('utf-8') for l in (log_out, log_err)]
+                    log_out.close(), log_err.close()
                     passed = stderr == "" and proc.returncode == 0
                     self.num_running -= 1
                     self.jobs.remove(j)

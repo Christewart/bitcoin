@@ -125,12 +125,16 @@ def sync_blocks(rpc_connections, wait=1, timeout=60):
     """
     Wait until everybody has the same tip
     """
+    maxheight = 0
     while timeout > 0:
-        tips = [ x.getbestblockhash() for x in rpc_connections ]
+        tips = [ x.waitforblockheight(maxheight, int(wait * 1000)) for x in rpc_connections ]
+        heights = [ x["height"] for x in tips ]
         if tips == [ tips[0] ]*len(tips):
             return True
-        time.sleep(wait)
+        if heights == [ heights[0] ]*len(heights): #heights are the same but hashes are not
+            raise AssertionError("Block sync failed")
         timeout -= wait
+        maxheight = max(heights)
     raise AssertionError("Block sync failed")
 
 def sync_mempools(rpc_connections, wait=1, timeout=60):
@@ -157,7 +161,7 @@ def initialize_datadir(dirname, n):
     if not os.path.isdir(datadir):
         os.makedirs(datadir)
     rpc_u, rpc_p = rpc_auth_pair(n)
-    with open(os.path.join(datadir, "bitcoin.conf"), 'w') as f:
+    with open(os.path.join(datadir, "bitcoin.conf"), 'w', encoding='utf8') as f:
         f.write("regtest=1\n")
         f.write("rpcuser=" + rpc_u + "\n")
         f.write("rpcpassword=" + rpc_p + "\n")
@@ -262,7 +266,6 @@ def initialize_chain(test_dir, num_nodes, cachedir):
 
         # Shut them down, and clean up cache directories:
         stop_nodes(rpcs)
-        wait_bitcoinds()
         disable_mocktime()
         for i in range(MAX_NODES):
             os.remove(log_filename(cachedir, i, "debug.log"))
@@ -361,6 +364,7 @@ def stop_nodes(nodes):
         except http.client.CannotSendRequest as e:
             print("WARN: Unable to stop node: " + repr(e))
     del nodes[:] # Emptying array closes connections as a side effect
+    wait_bitcoinds()
 
 def set_node_times(nodes, t):
     for node in nodes:

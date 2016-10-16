@@ -44,7 +44,7 @@ UniValue getinfo(const UniValue& params, bool fHelp)
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getinfo\n"
-            "Returns an object containing various state info.\n"
+            "\nDEPRECATED. Returns an object containing various state info.\n"
             "\nResult:\n"
             "{\n"
             "  \"version\": xxxxx,           (numeric) the server version\n"
@@ -89,7 +89,8 @@ UniValue getinfo(const UniValue& params, bool fHelp)
 #endif
     obj.push_back(Pair("blocks",        (int)chainActive.Height()));
     obj.push_back(Pair("timeoffset",    GetTimeOffset()));
-    obj.push_back(Pair("connections",   (int)vNodes.size()));
+    if(g_connman)
+        obj.push_back(Pair("connections",   (int)g_connman->GetNodeCount(CConnman::CONNECTIONS_ALL)));
     obj.push_back(Pair("proxy",         (proxy.IsValid() ? proxy.proxy.ToStringIPPort() : string())));
     obj.push_back(Pair("difficulty",    (double)GetDifficulty()));
     obj.push_back(Pair("testnet",       Params().TestnetToBeDeprecatedFieldRPC()));
@@ -320,43 +321,6 @@ UniValue createmultisig(const UniValue& params, bool fHelp)
     return result;
 }
 
-UniValue createwitnessaddress(const UniValue& params, bool fHelp)
-{
-    if (fHelp || params.size() < 1 || params.size() > 1)
-    {
-        string msg = "createwitnessaddress \"script\"\n"
-            "\nCreates a witness address for a particular script.\n"
-            "It returns a json object with the address and witness script.\n"
-
-            "\nArguments:\n"
-            "1. \"script\"       (string, required) A hex encoded script\n"
-
-            "\nResult:\n"
-            "{\n"
-            "  \"address\":\"multisigaddress\",  (string) The value of the new address (P2SH of witness script).\n"
-            "  \"witnessScript\":\"script\"      (string) The string value of the hex-encoded witness script.\n"
-            "}\n"
-        ;
-        throw runtime_error(msg);
-    }
-
-    if (!IsHex(params[0].get_str())) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Script must be hex-encoded");
-    }
-
-    std::vector<unsigned char> code = ParseHex(params[0].get_str());
-    CScript script(code.begin(), code.end());
-    CScript witscript = GetScriptForWitness(script);
-    CScriptID witscriptid(witscript);
-    CBitcoinAddress address(witscriptid);
-
-    UniValue result(UniValue::VOBJ);
-    result.push_back(Pair("address", address.ToString()));
-    result.push_back(Pair("witnessScript", HexStr(witscript.begin(), witscript.end())));
-
-    return result;
-}
-
 UniValue verifymessage(const UniValue& params, bool fHelp)
 {
     if (fHelp || params.size() != 3)
@@ -471,14 +435,16 @@ UniValue setmocktime(const UniValue& params, bool fHelp)
     // atomically with the time change to prevent peers from being
     // disconnected because we think we haven't communicated with them
     // in a long time.
-    LOCK2(cs_main, cs_vNodes);
+    LOCK(cs_main);
 
     RPCTypeCheck(params, boost::assign::list_of(UniValue::VNUM));
     SetMockTime(params[0].get_int64());
 
     uint64_t t = GetTime();
-    BOOST_FOREACH(CNode* pnode, vNodes) {
-        pnode->nLastSend = pnode->nLastRecv = t;
+    if(g_connman) {
+        g_connman->ForEachNode([t](CNode* pnode) {
+            pnode->nLastSend = pnode->nLastRecv = t;
+        });
     }
 
     return NullUniValue;
@@ -490,7 +456,6 @@ static const CRPCCommand commands[] =
     { "control",            "getinfo",                &getinfo,                true  }, /* uses wallet if enabled */
     { "util",               "validateaddress",        &validateaddress,        true  }, /* uses wallet if enabled */
     { "util",               "createmultisig",         &createmultisig,         true  },
-    { "util",               "createwitnessaddress",   &createwitnessaddress,   true  },
     { "util",               "verifymessage",          &verifymessage,          true  },
     { "util",               "signmessagewithprivkey", &signmessagewithprivkey, true  },
 
@@ -498,8 +463,8 @@ static const CRPCCommand commands[] =
     { "hidden",             "setmocktime",            &setmocktime,            true  },
 };
 
-void RegisterMiscRPCCommands(CRPCTable &tableRPC)
+void RegisterMiscRPCCommands(CRPCTable &t)
 {
     for (unsigned int vcidx = 0; vcidx < ARRAYLEN(commands); vcidx++)
-        tableRPC.appendCommand(commands[vcidx].name, &commands[vcidx]);
+        t.appendCommand(commands[vcidx].name, &commands[vcidx]);
 }
