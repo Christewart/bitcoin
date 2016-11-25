@@ -141,11 +141,11 @@ private:
 
     // Configuration parameters for the block size
     bool fIncludeWitness;
-    unsigned int nBlockMaxCost, nBlockMaxSize;
+    unsigned int nBlockMaxWeight, nBlockMaxSize;
     bool fNeedSizeAccounting;
 
     // Information on the current status of the block
-    uint64_t nBlockCost;
+    uint64_t nBlockWeight;
     uint64_t nBlockSize;
     uint64_t nBlockTx;
     uint64_t nBlockSigOpsCost;
@@ -164,7 +164,7 @@ private:
 public:
     BlockAssembler(const CChainParams& chainparams);
     /** Construct a new block template with coinbase to scriptPubKeyIn */
-    CBlockTemplate* CreateNewBlock(const CScript& scriptPubKeyIn);
+    std::unique_ptr<CBlockTemplate> CreateNewBlock(const CScript& scriptPubKeyIn);
 
 private:
     // utility functions

@@ -28,7 +28,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(hash);
         READWRITE(n);
     }
@@ -104,7 +104,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(prevout);
         READWRITE(*(CScriptBase*)(&scriptSig));
         READWRITE(nSequence);
@@ -144,7 +144,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
+    inline void SerializationOp(Stream& s, Operation ser_action) {
         READWRITE(nValue);
         READWRITE(*(CScriptBase*)(&scriptPubKey));
     }
@@ -159,8 +159,6 @@ public:
     {
         return (nValue == -1);
     }
-
-    uint256 GetHash() const;
 
     CAmount GetDustThreshold(const CFeeRate &minRelayTxFee) const
     {
@@ -179,7 +177,7 @@ public:
         if (scriptPubKey.IsUnspendable())
             return 0;
 
-        size_t nSize = GetSerializeSize(SER_DISK, 0);
+        size_t nSize = GetSerializeSize(*this, SER_DISK, 0);
         int witnessversion = 0;
         std::vector<unsigned char> witnessprogram;
 
@@ -221,7 +219,7 @@ public:
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    inline void SerializationOp(Stream& s, Operation ser_action)
     {
         READWRITE(scriptWitness.stack);
     }
@@ -257,7 +255,7 @@ public:
     }
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+    inline void SerializationOp(Stream& s, Operation ser_action)
     {
         for (size_t n = 0; n < vtxinwit.size(); n++) {
             READWRITE(vtxinwit[n]);
@@ -289,7 +287,9 @@ struct CMutableTransaction;
  * - uint32_t nLockTime
  */
 template<typename Stream, typename Operation, typename TxType>
-inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, int nType, int nVersion) {
+inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action) {
+    const bool fAllowWitness = !(s.GetVersion() & SERIALIZE_TRANSACTION_NO_WITNESS);
+
     READWRITE(*const_cast<int32_t*>(&tx.nVersion));
     unsigned char flags = 0;
     if (ser_action.ForRead()) {
@@ -298,7 +298,7 @@ inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, in
         const_cast<CTxWitness*>(&tx.wit)->SetNull();
         /* Try to read the vin. In case the dummy is there, this will be read as an empty vector. */
         READWRITE(*const_cast<std::vector<CTxIn>*>(&tx.vin));
-        if (tx.vin.size() == 0 && !(nVersion & SERIALIZE_TRANSACTION_NO_WITNESS)) {
+        if (tx.vin.size() == 0 && fAllowWitness) {
             /* We read a dummy or an empty vin. */
             READWRITE(flags);
             if (flags != 0) {
@@ -309,7 +309,7 @@ inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, in
             /* We read a non-empty vin. Assume a normal vout follows. */
             READWRITE(*const_cast<std::vector<CTxOut>*>(&tx.vout));
         }
-        if ((flags & 1) && !(nVersion & SERIALIZE_TRANSACTION_NO_WITNESS)) {
+        if ((flags & 1) && fAllowWitness) {
             /* The witness flag is present, and we support witnesses. */
             flags ^= 1;
             const_cast<CTxWitness*>(&tx.wit)->vtxinwit.resize(tx.vin.size());
@@ -322,7 +322,7 @@ inline void SerializeTransaction(TxType& tx, Stream& s, Operation ser_action, in
     } else {
         // Consistency check
         assert(tx.wit.vtxinwit.size() <= tx.vin.size());
-        if (!(nVersion & SERIALIZE_TRANSACTION_NO_WITNESS)) {
+        if (fAllowWitness) {
             /* Check whether witnesses need to be serialized. */
             if (!tx.wit.IsNull()) {
                 flags |= 1;
@@ -379,18 +379,22 @@ public:
 
     /** Convert a CMutableTransaction into a CTransaction. */
     CTransaction(const CMutableTransaction &tx);
+    CTransaction(CMutableTransaction &&tx);
 
     CTransaction& operator=(const CTransaction& tx);
 
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        SerializeTransaction(*this, s, ser_action, nType, nVersion);
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        SerializeTransaction(*this, s, ser_action);
         if (ser_action.ForRead()) {
             UpdateHash();
         }
     }
+
+    template <typename Stream>
+    CTransaction(deserialize_type, Stream& s) : CTransaction(CMutableTransaction(deserialize, s)) {}
 
     bool IsNull() const {
         return vin.empty() && vout.empty();
@@ -413,6 +417,13 @@ public:
 
     // Compute modified tx size for priority calculation (optionally given tx size)
     unsigned int CalculateModifiedSize(unsigned int nTxSize=0) const;
+    
+    /**
+     * Get the total transaction size in bytes, including witness data.
+     * "Total Size" defined in BIP141 and BIP144.
+     * @return Total transaction size in bytes
+     */
+    unsigned int GetTotalSize() const;
 
     bool IsCoinBase() const
     {
@@ -449,8 +460,13 @@ struct CMutableTransaction
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
-        SerializeTransaction(*this, s, ser_action, nType, nVersion);
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        SerializeTransaction(*this, s, ser_action);
+    }
+
+    template <typename Stream>
+    CMutableTransaction(deserialize_type, Stream& s) {
+        Unserialize(s);
     }
 
     /** Compute the hash of this CMutableTransaction. This is computed on the
@@ -459,7 +475,13 @@ struct CMutableTransaction
     uint256 GetHash() const;
 };
 
-/** Compute the cost of a transaction, as defined by BIP 141 */
-int64_t GetTransactionCost(const CTransaction &tx);
+typedef std::shared_ptr<const CTransaction> CTransactionRef;
+static inline CTransactionRef MakeTransactionRef() { return std::make_shared<const CTransaction>(); }
+template <typename Tx> static inline CTransactionRef MakeTransactionRef(Tx&& txIn) { return std::make_shared<const CTransaction>(std::forward<Tx>(txIn)); }
+static inline CTransactionRef MakeTransactionRef(const CTransactionRef& txIn) { return txIn; }
+static inline CTransactionRef MakeTransactionRef(CTransactionRef&& txIn) { return std::move(txIn); }
+
+/** Compute the weight of a transaction, as defined by BIP 141 */
+int64_t GetTransactionWeight(const CTransaction &tx);
 
 #endif // BITCOIN_PRIMITIVES_TRANSACTION_H
