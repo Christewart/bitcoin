@@ -1183,6 +1183,10 @@ PrecomputedTransactionData::PrecomputedTransactionData(const CTransaction& txTo)
 uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType, const CAmount& amount, SigVersion sigversion, const PrecomputedTransactionData* cache)
 {
     if (sigversion == SIGVERSION_WITNESS_V0) {
+        CDataStream original_tx_stream(SER_NETWORK, PROTOCOL_VERSION); 
+        original_tx_stream << txTo; 
+        printf("original tx : %s\n", HexStr(original_tx_stream).c_str());
+        
         uint256 hashPrevouts;
         uint256 hashSequence;
         uint256 hashOutputs;
@@ -1204,12 +1208,16 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
             hashOutputs = ss.GetHash();
         }
 
+        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
         CHashWriter ss(SER_GETHASH, 0);
         // Version
         ss << txTo.nVersion;
+        stream << txTo.nVersion;
         // Input prevouts/nSequence (none/all, depending on flags)
         ss << hashPrevouts;
         ss << hashSequence;
+        stream << hashPrevouts;
+        stream << hashSequence;
         // The input being signed (replacing the scriptSig with scriptCode + amount)
         // The prevout may already be contained in hashPrevout, and the nSequence
         // may already be contain in hashSequence.
@@ -1217,17 +1225,30 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         ss << static_cast<const CScriptBase&>(scriptCode);
         ss << amount;
         ss << txTo.vin[nIn].nSequence;
+        
+        stream << txTo.vin[nIn].prevout;
+        stream << static_cast<const CScriptBase&>(scriptCode);
+        stream << amount;
+        stream << txTo.vin[nIn].nSequence;
         // Outputs (none/one/all, depending on flags)
         ss << hashOutputs;
+        stream << hashOutputs;
         // Locktime
         ss << txTo.nLockTime;
+        stream << txTo.nLockTime;
         // Sighash type
         ss << nHashType;
-        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
-        stream << txTmp << nHashType; 
+        stream << nHashType;
+        CDataStream stream1(SER_NETWORK, PROTOCOL_VERSION);
+        stream1 << hashPrevouts;
+        printf("Serialized hashPrevouts : %s\n", HexStr(stream1).c_str());
+        CDataStream stream2(SER_NETWORK, PROTOCOL_VERSION);
+        stream2 << hashSequence;
+        printf("Serialized hashSequence: %s\n", HexStr(stream2).c_str());
+        CDataStream stream3(SER_NETWORK, PROTOCOL_VERSION);
+        stream3 << hashOutputs; 
+        printf("Serialized hashOutputs: %s\n", HexStr(stream3).c_str());
         printf("Serialized Witness Transaction for sig: %s\n", HexStr(stream).c_str());
-        CHashWriter ss(SER_GETHASH, 0);
-        ss << txTmp << nHashType;
 
         return ss.GetHash();
     }
@@ -1249,10 +1270,10 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
     // Wrapper to serialize only the necessary parts of the transaction being signed
     CTransactionSignatureSerializer txTmp(txTo, scriptCode, nIn, nHashType);
 
+    CHashWriter ss(SER_NETWORK, PROTOCOL_VERSION); 
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
     stream << txTmp << nHashType; 
     printf("Serialized Transaction for sig: %s\n", HexStr(stream).c_str());
-    CHashWriter ss(SER_GETHASH, 0);
     ss << txTmp << nHashType;
     return ss.GetHash();
 }
