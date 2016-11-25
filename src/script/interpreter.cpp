@@ -1223,6 +1223,11 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         ss << txTo.nLockTime;
         // Sighash type
         ss << nHashType;
+        CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
+        stream << txTmp << nHashType; 
+        printf("Serialized Witness Transaction for sig: %s\n", HexStr(stream).c_str());
+        CHashWriter ss(SER_GETHASH, 0);
+        ss << txTmp << nHashType;
 
         return ss.GetHash();
     }
