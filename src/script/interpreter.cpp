@@ -904,6 +904,7 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                         //serror is set
                         return false;
                     }
+                    cout << "Script being checked inside of OP_CHECKSIG: " << ScriptToAsmStr(scriptCode) << std::endl; 
                     bool fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
 
                     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())
@@ -1165,9 +1166,12 @@ uint256 GetSequenceHash(const CTransaction& txTo) {
 
 uint256 GetOutputsHash(const CTransaction& txTo) {
     CHashWriter ss(SER_GETHASH, 0);
+    CDataStream ss1(SER_NETWORK, PROTOCOL_VERSION); 
     for (unsigned int n = 0; n < txTo.vout.size(); n++) {
         ss << txTo.vout[n];
+        ss1 << txTo.vout[n];
     }
+    printf("output serialization : %s\n", HexStr(ss1).c_str());
     return ss.GetHash();
 }
 
@@ -1223,6 +1227,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         // may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
         ss << static_cast<const CScriptBase&>(scriptCode);
+        cout << "Script being reconstructed for wtx signature : " << ScriptToAsmStr(scriptCode) << std::endl; 
         ss << amount;
         ss << txTo.vin[nIn].nSequence;
         
@@ -1241,7 +1246,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         stream << nHashType;
         CDataStream stream1(SER_NETWORK, PROTOCOL_VERSION);
         stream1 << hashPrevouts;
-        printf("Serialized hashPrevouts : %s\n", HexStr(stream1).c_str());
+        //printf("Serialized hashPrevouts : %s\n", HexStr(stream1).c_str());
         CDataStream stream2(SER_NETWORK, PROTOCOL_VERSION);
         stream2 << hashSequence;
         printf("Serialized hashSequence: %s\n", HexStr(stream2).c_str());
@@ -1249,7 +1254,7 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         stream3 << hashOutputs; 
         printf("Serialized hashOutputs: %s\n", HexStr(stream3).c_str());
         printf("Serialized Witness Transaction for sig: %s\n", HexStr(stream).c_str());
-
+        //printf("wtx hash: %s\n", HexStr(ss.GetHash()).c_str());
         return ss.GetHash();
     }
 
@@ -1398,6 +1403,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
             }
             scriptPubKey = CScript(witness.stack.back().begin(), witness.stack.back().end());
+            cout << "Script being reconstructed for witness: " << ScriptToAsmStr(scriptPubKey) << std::endl; 
             stack = std::vector<std::vector<unsigned char> >(witness.stack.begin(), witness.stack.end() - 1);
             uint256 hashScriptPubKey;
             CSHA256().Write(&scriptPubKey[0], scriptPubKey.size()).Finalize(hashScriptPubKey.begin());
