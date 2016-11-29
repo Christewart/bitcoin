@@ -904,7 +904,13 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
                         //serror is set
                         return false;
                     }
-                    cout << "Script being checked inside of OP_CHECKSIG: " << ScriptToAsmStr(scriptCode) << std::endl; 
+                    CDataStream ss2(SER_NETWORK, PROTOCOL_VERSION);
+                    ss2 << static_cast<const CScriptBase&>(script);
+                    printf("script inside of OP_CHECKSIG: %s\n", HexStr(ss2).c_str());
+                    
+                    CDataStream ss3(SER_NETWORK, PROTOCOL_VERSION);
+                    ss3 << static_cast<const CScriptBase&>(scriptCode);
+                    printf("scriptCode inside of OP_CHECKSIG: %s\n", HexStr(ss3).c_str());
                     bool fSuccess = checker.CheckSig(vchSig, vchPubKey, scriptCode, sigversion);
 
                     if (!fSuccess && (flags & SCRIPT_VERIFY_NULLFAIL) && vchSig.size())

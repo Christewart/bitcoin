@@ -975,6 +975,7 @@ BOOST_AUTO_TEST_CASE(script_json_test)
             for (i = 0; i < test[pos].size()-1; i++) {
                 witness.stack.push_back(ParseHex(test[pos][i].get_str()));
             }
+            printf("Parsed witness: %s\n", witness.ToString().c_str());
             nValue = AmountFromValue(test[pos][i]);
             pos++;
         }
