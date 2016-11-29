@@ -1227,7 +1227,9 @@ uint256 SignatureHash(const CScript& scriptCode, const CTransaction& txTo, unsig
         // may already be contain in hashSequence.
         ss << txTo.vin[nIn].prevout;
         ss << static_cast<const CScriptBase&>(scriptCode);
-        cout << "Script being reconstructed for wtx signature : " << ScriptToAsmStr(scriptCode) << std::endl; 
+        CDataStream ss3(SER_NETWORK, PROTOCOL_VERSION);
+        ss3 << static_cast<const CScriptBase&>(scriptCode);
+        printf("script code serialization for sig : %s\n", HexStr(ss3).c_str());
         ss << amount;
         ss << txTo.vin[nIn].nSequence;
         
@@ -1403,10 +1405,17 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
             }
             scriptPubKey = CScript(witness.stack.back().begin(), witness.stack.back().end());
-            cout << "Script being reconstructed for witness: " << ScriptToAsmStr(scriptPubKey) << std::endl; 
+            CDataStream ss3(SER_NETWORK, PROTOCOL_VERSION);
+            ss3 << static_cast<const CScriptBase&>(scriptPubKey);
+            printf("witness program inside VerifyWitnessProgram: %s\n", HexStr(ss3).c_str());
             stack = std::vector<std::vector<unsigned char> >(witness.stack.begin(), witness.stack.end() - 1);
             uint256 hashScriptPubKey;
+            uint256 hashScriptPubKey2;
             CSHA256().Write(&scriptPubKey[0], scriptPubKey.size()).Finalize(hashScriptPubKey.begin());
+            CSHA256().Write(&scriptPubKey[0], scriptPubKey.size()).Finalize(hashScriptPubKey2.begin());
+            CDataStream ss4(SER_NETWORK, PROTOCOL_VERSION);
+            ss4 << hashScriptPubKey2;
+            printf("stack hash in VerifyWitnessProgram: %s\n", HexStr(ss4).c_str());
             if (memcmp(hashScriptPubKey.begin(), &program[0], 32)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
