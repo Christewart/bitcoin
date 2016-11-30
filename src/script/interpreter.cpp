@@ -278,7 +278,6 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
         while (pc < pend)
         {
             bool fExec = !count(vfExec.begin(), vfExec.end(), false);
-
             //
             // Read instruction
             //
@@ -290,7 +289,18 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, un
             // Note how OP_RESERVED does not count towards the opcode limit.
             if (opcode > OP_16 && ++nOpCount > MAX_OPS_PER_SCRIPT)
                 return set_error(serror, SCRIPT_ERR_OP_COUNT);
-
+            
+            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+            cout << "Op being executed: " << GetOpName(opcode) << "\n";
+            cout << "vchPushValue: " << HexStr( vchPushValue ) << "\n";
+            for (unsigned int i = 0; i < stack.size(); i++) {
+                for (unsigned int j = 0;  j < stack[i].size(); j++) {
+                      ss << stack[i][j];
+                }
+                ss << '\n';
+            }
+            printf("Stack: %s\n", HexStr(ss).c_str());
+            printf("\n");
             if (opcode == OP_CAT ||
                 opcode == OP_SUBSTR ||
                 opcode == OP_LEFT ||
@@ -1410,10 +1420,13 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             if (witness.stack.size() == 0) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
             }
+            for (unsigned int i = 0; i < witness.stack.size(); i++) {
+              cout << "stack element: " + HexStr(witness.stack[i]) << std::endl; 
+            }
             scriptPubKey = CScript(witness.stack.back().begin(), witness.stack.back().end());
             CDataStream ss3(SER_NETWORK, PROTOCOL_VERSION);
             ss3 << static_cast<const CScriptBase&>(scriptPubKey);
-            printf("witness program inside VerifyWitnessProgram: %s\n", HexStr(ss3).c_str());
+            printf("scriptPubKey inside VerifyWitnessProgram: %s\n", HexStr(ss3).c_str());
             stack = std::vector<std::vector<unsigned char> >(witness.stack.begin(), witness.stack.end() - 1);
             uint256 hashScriptPubKey;
             uint256 hashScriptPubKey2;
@@ -1493,6 +1506,8 @@ bool VerifyScript(const CScript& scriptSig, const CScript& scriptPubKey, const C
     std::vector<unsigned char> witnessprogram;
     if (flags & SCRIPT_VERIFY_WITNESS) {
         if (scriptPubKey.IsWitnessProgram(witnessversion, witnessprogram)) {
+            CDataStream ss(SER_NETWORK, PROTOCOL_VERSION);
+            cout << "Witness program: " << HexStr(witnessprogram) << "\n"; 
             hadWitness = true;
             if (scriptSig.size() != 0) {
                 // The scriptSig must be _exactly_ CScript(), otherwise we reintroduce malleability.
