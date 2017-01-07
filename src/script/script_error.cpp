@@ -1,5 +1,5 @@
 // Copyright (c) 2009-2010 Satoshi Nakamoto
-// Copyright (c) 2009-2014 The Bitcoin Core developers
+// Copyright (c) 2009-2016 The Bitcoin Core developers
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
@@ -85,6 +85,8 @@ const char* ScriptErrorString(const ScriptError serror)
             return "Witness requires only-redeemscript scriptSig";
         case SCRIPT_ERR_WITNESS_UNEXPECTED:
             return "Witness provided for non-witness script";
+        case SCRIPT_ERR_WITNESS_PUBKEYTYPE:
+            return "Using non-compressed keys in segwit";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

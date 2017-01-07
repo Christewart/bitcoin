@@ -132,8 +132,16 @@ void ModalOverlay::tipUpdate(int count, const QDateTime& blockDate, double nVeri
     if (estimateNumHeadersLeft < 24 && hasBestHeader) {
         ui->numberOfBlocksLeft->setText(QString::number(bestHeaderHeight - count));
     } else {
-        ui->expectedTimeLeft->setText(tr("Unknown. Syncing Headers..."));
+        ui->numberOfBlocksLeft->setText(tr("Unknown. Syncing Headers (%1)...").arg(bestHeaderHeight));
+        ui->expectedTimeLeft->setText(tr("Unknown..."));
     }
+}
+
+void ModalOverlay::toggleVisibility()
+{
+    showHide(layerIsVisible, true);
+    if (!layerIsVisible)
+        userClosed = true;
 }
 
 void ModalOverlay::showHide(bool hide, bool userRequested)
