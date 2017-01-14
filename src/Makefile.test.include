@@ -122,7 +122,8 @@ BITCOIN_TESTS =\
   test/gen/bloom_gen.h \
   test/gen/block_gen.h \
   test/gen/script_gen.h \
-	test/gen/transaction_gen.h
+  test/gen/transaction_gen.h \
+  test/gen/transaction_gen.cpp
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \

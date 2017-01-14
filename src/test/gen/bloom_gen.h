@@ -1,3 +1,6 @@
+#ifndef BITCOIN_TEST_GEN_BLOOM_GEN_H
+#define BITCOIN_TEST_GEN_BLOOM_GEN_H
+
 #include <math.h>
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
@@ -28,3 +31,4 @@ namespace rc {
     };
   };
 }
+#endif

@@ -1,9 +1,14 @@
+#ifndef BITCOIN_TEST_GEN_TRANSACTION_GEN_H
+#define BITCOIN_TEST_GEN_TRANSACTION_GEN_H
+
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
 #include "primitives/transaction.h" 
-#include "test/gen/script_gen.h"
 #include "script/script.h"
 #include "amount.h"
+#include "test/gen/script_gen.h"
+#include "test/gen/crypto_gen.h"
+
 namespace rc {
  
   template<>
@@ -31,19 +36,16 @@ namespace rc {
       });
     };
   };
-  /** Generates one or more inputs */ 
-  Gen<std::vector<CTxIn>> oneOrMoreInputs = gen::suchThat<std::vector<CTxIn>>([](std::vector<CTxIn> vin) {
-    return vin.size() > 0;      
-  }); 
+ 
   
   template<>
   struct Arbitrary<CAmount> {
     static Gen<CAmount> arbitrary() {
       //why doesn't this generator call work? It seems to cause an infinite loop. 
       //return gen::arbitrary<int64_t>();
-      return gen::inRange<int64_t>(std::numeric_limits<int64_t>::min(),std::numeric_limits<int64_t>::max());
+      return gen::inRange(std::numeric_limits<int64_t>::min(),std::numeric_limits<int64_t>::max());
     };
-  };
+  }; 
 
   template<>
   struct Arbitrary<CTxOut> { 
@@ -55,18 +57,19 @@ namespace rc {
         return CTxOut(amount,script);
       });
     };
-  };
+  }; 
 
+  /** Generates one or more inputs */ 
+  Gen<std::vector<CTxIn>> oneOrMoreInputs();
   /** Generates one or more outputs */ 
-  Gen<std::vector<CTxOut>> oneOrMoreOutputs = gen::suchThat<std::vector<CTxOut>>([](std::vector<CTxOut> vout) {
-    return vout.size() > 0;      
-  });
+  Gen<std::vector<CTxOut>> oneOrMoreOutputs(); 
 
+/*
   template<> 
   struct Arbitrary<CTransaction> { 
     static Gen<CTransaction> arbitrary() { 
       return gen::map(gen::tuple(gen::arbitrary<int32_t>(), 
-            oneOrMoreInputs, oneOrMoreOutputs, gen::arbitrary<uint32_t>()), 
+            gen::arbitrary<std::vector<CTxIn>>(), gen::arbitrary<std::vector<CTxOut>>(), gen::arbitrary<uint32_t>()), 
           [](std::tuple<int32_t, std::vector<CTxIn>, std::vector<CTxOut>, uint32_t> txPrimitives) { 
         CMutableTransaction tx;
         int32_t nVersion;
@@ -81,5 +84,20 @@ namespace rc {
         return CTransaction(tx); 
       });
     };
-  };
+  };*/
+
+  /*template<>
+  struct Arbitrary<CTransactionRef> { 
+    static Gen<CTransactionRef> arbitrary() {
+      return gen::map(gen::arbitrary<std::vector<CTransaction>>(), [](std::vector<CTransaction> txs) {
+        std::vector<CTransactionRef> refs; 
+        refs.resize(txs.size());
+        for (unsigned int i = 0; i < txs.size(); i++) {
+          refs[i] = MakeTransactionRef(txs[i]);
+        }
+        return refs; 
+      });
+    };
+  };*/
 }
+#endif
