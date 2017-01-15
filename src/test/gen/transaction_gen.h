@@ -31,10 +31,6 @@ namespace rc {
       });
     };
   };
-  /** Generates one or more inputs */ 
-  Gen<std::vector<CTxIn>> oneOrMoreInputs = gen::suchThat<std::vector<CTxIn>>([](std::vector<CTxIn> vin) {
-    return vin.size() > 0;      
-  }); 
   
   template<>
   struct Arbitrary<CAmount> {
@@ -57,16 +53,12 @@ namespace rc {
     };
   };
 
-  /** Generates one or more outputs */ 
-  Gen<std::vector<CTxOut>> oneOrMoreOutputs = gen::suchThat<std::vector<CTxOut>>([](std::vector<CTxOut> vout) {
-    return vout.size() > 0;      
-  });
 
   template<> 
   struct Arbitrary<CTransaction> { 
     static Gen<CTransaction> arbitrary() { 
       return gen::map(gen::tuple(gen::arbitrary<int32_t>(), 
-            oneOrMoreInputs, oneOrMoreOutputs, gen::arbitrary<uint32_t>()), 
+            gen::nonEmpty<std::vector<CTxIn>>(), gen::nonEmpty<std::vector<CTxOut>>(), gen::arbitrary<uint32_t>()), 
           [](std::tuple<int32_t, std::vector<CTxIn>, std::vector<CTxOut>, uint32_t> txPrimitives) { 
         CMutableTransaction tx;
         int32_t nVersion;
