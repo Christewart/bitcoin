@@ -1443,4 +1443,12 @@ BOOST_AUTO_TEST_CASE(script_FindAndDelete)
     BOOST_CHECK(s == expect);
 }
 
+BOOST_AUTO_TEST_CASE(op1_negate) {
+  //OP_1 padding to get past first size check of script
+  CScript s = CScript() << OP_1NEGATE << OP_1 << OP_1 << OP_1;
+  std::vector<unsigned char> witProgram;
+  int version = 0;
+  BOOST_CHECK(s.IsWitnessProgram(version,witProgram));
+}
+
 BOOST_AUTO_TEST_SUITE_END()

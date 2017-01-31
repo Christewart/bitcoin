@@ -223,12 +223,15 @@ bool CScript::IsPayToWitnessScriptHash() const
 bool CScript::IsWitnessProgram(int& version, std::vector<unsigned char>& program) const
 {
     if (this->size() < 4 || this->size() > 42) {
+        cout << "Failed witness program because of CScript size\n";
         return false;
     }
     if ((*this)[0] != OP_0 && ((*this)[0] < OP_1 || (*this)[0] > OP_16)) {
+        cout << "Failed witness program of invalid program version\n";
         return false;
     }
     if ((size_t)((*this)[1] + 2) == this->size()) {
+        cout << "Failed witness program because of invalid push\n";
         version = DecodeOP_N((opcodetype)(*this)[0]);
         program = std::vector<unsigned char>(this->begin() + 2, this->end());
         return true;
