@@ -124,7 +124,7 @@ BITCOIN_TESTS =\
   test/gen/merkleblock_gen.h \
   test/block_properties.cpp \
   test/merkleblock_properties.cpp \
-	test/gen/transaction_gen.h
+  test/gen/transaction_gen.h
 
 if ENABLE_WALLET
 BITCOIN_TESTS += \
