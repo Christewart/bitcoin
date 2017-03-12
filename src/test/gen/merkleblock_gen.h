@@ -15,6 +15,7 @@ namespace rc {
     static Gen<std::pair<CMerkleBlock,std::set<uint256>>> arbitrary() {
       return gen::map(gen::arbitrary<CBlock>(), [](CBlock block) {
         std::set<uint256> hashes;
+        std::cout << "loading merkle block\n"; 
         for(unsigned int i = 0; i < block.vtx.size(); i++) {
           //pretty naive to include every other txid in the merkle block
           //but this will work for now.
@@ -22,11 +23,17 @@ namespace rc {
             hashes.insert(block.vtx[i]->GetHash());
            }
         }
+        std::cout << " done loading merkle block, num txs: " << block.vtx.size() / 2 << "\n"; 
         return std::make_pair(CMerkleBlock(block,hashes),hashes);
       });
     };
   };
 
+
+  Gen<std::vector<uint256>> betweenZeroAnd100 = gen::suchThat<std::vector<uint256>>([](std::vector<uint256> hashes) {
+    return hashes.size() >= 0 && hashes.size() <= 100; 
+  }); 
+  
   /** Returns an arbitrary CMerkleBlock */
   template<>
   struct Arbitrary<CMerkleBlock> { 

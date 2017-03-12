@@ -61,7 +61,9 @@ CMerkleBlock::CMerkleBlock(const CBlock& block, const std::set<uint256>& txids)
 }
 
 uint256 CPartialMerkleTree::CalcHash(int height, unsigned int pos, const std::vector<uint256> &vTxid) {
-    if (height == 0) {
+    if (height == 0 && pos == 0 && vTxid.size() == 0) {
+      return uint256(); 
+    } else if (height == 0) {
         // hash at height 0 is the txids themself
         return vTxid[pos];
     } else {
