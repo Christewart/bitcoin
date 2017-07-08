@@ -42,15 +42,9 @@ public:
     std::string GetCommand() const;
     bool IsValid(const MessageStartChars& messageStart) const;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(CMessageHeader, obj)
     {
-        READWRITE(FLATDATA(pchMessageStart));
-        READWRITE(FLATDATA(pchCommand));
-        READWRITE(nMessageSize);
-        READWRITE(FLATDATA(pchChecksum));
+        READWRITE(obj.pchMessageStart, obj.pchCommand, obj.nMessageSize, obj.pchChecksum);
     }
 
     char pchMessageStart[MESSAGE_START_SIZE];
@@ -331,23 +325,18 @@ public:
 
     void Init();
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
+    SERIALIZE_METHODS(Caddress, obj)
     {
-        if (ser_action.ForRead())
-            Init();
         int nVersion = s.GetVersion();
-        if (s.GetType() & SER_DISK)
+        if (s.GetType() & SER_DISK) {
             READWRITE(nVersion);
+        }
         if ((s.GetType() & SER_DISK) ||
-            (nVersion >= CADDR_TIME_VERSION && !(s.GetType() & SER_GETHASH)))
-            READWRITE(nTime);
-        uint64_t nServicesInt = nServices;
-        READWRITE(nServicesInt);
-        nServices = static_cast<ServiceFlags>(nServicesInt);
-        READWRITE(*static_cast<CService*>(this));
+            (nVersion >= CADDR_TIME_VERSION && !(s.GetType() & SER_GETHASH))) {
+            READWRITE(obj.nTime);
+        }
+        READWRITEAS(obj.nServices, uint64_t);
+        READWRITEAS(obj, CService);
     }
 
     // TODO: make private (improves encapsulation)
@@ -386,14 +375,7 @@ public:
     CInv();
     CInv(int typeIn, const uint256& hashIn);
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action)
-    {
-        READWRITE(type);
-        READWRITE(hash);
-    }
+    SERIALIZE_METHODS(CInv, obj) { READWRITE(obj.type, obj.hash); }
 
     friend bool operator<(const CInv& a, const CInv& b);
 
