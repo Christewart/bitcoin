@@ -539,7 +539,7 @@ inline void Serialize(Stream& os, const T& a)
 }
 
 template<typename Stream, typename T>
-inline void Unserialize(Stream& is, T& a)
+inline void Unserialize(Stream& is, T&& a)
 {
     a.Unserialize(is);
 }
@@ -832,7 +832,7 @@ inline void SerReadWrite(Stream& s, const T& obj, CSerActionSerialize ser_action
 }
 
 template<typename Stream, typename T>
-inline void SerReadWrite(Stream& s, T& obj, CSerActionUnserialize ser_action)
+inline void SerReadWrite(Stream& s, T&& obj, CSerActionUnserialize ser_action)
 {
     ::Unserialize(s, obj);
 }
@@ -897,17 +897,11 @@ void SerializeMany(Stream& s)
 {
 }
 
-template<typename Stream, typename Arg>
-void SerializeMany(Stream& s, Arg&& arg)
-{
-    ::Serialize(s, std::forward<Arg>(arg));
-}
-
 template<typename Stream, typename Arg, typename... Args>
-void SerializeMany(Stream& s, Arg&& arg, Args&&... args)
+void SerializeMany(Stream& s, const Arg& arg, const Args&... args)
 {
-    ::Serialize(s, std::forward<Arg>(arg));
-    ::SerializeMany(s, std::forward<Args>(args)...);
+    ::Serialize(s, arg);
+    ::SerializeMany(s, args...);
 }
 
 template<typename Stream>
@@ -915,27 +909,21 @@ inline void UnserializeMany(Stream& s)
 {
 }
 
-template<typename Stream, typename Arg>
-inline void UnserializeMany(Stream& s, Arg& arg)
-{
-    ::Unserialize(s, arg);
-}
-
 template<typename Stream, typename Arg, typename... Args>
-inline void UnserializeMany(Stream& s, Arg& arg, Args&... args)
+inline void UnserializeMany(Stream& s, Arg&& arg, Args&&... args)
 {
     ::Unserialize(s, arg);
     ::UnserializeMany(s, args...);
 }
 
 template<typename Stream, typename... Args>
-inline void SerReadWriteMany(Stream& s, CSerActionSerialize ser_action, Args&&... args)
+inline void SerReadWriteMany(Stream& s, CSerActionSerialize ser_action, const Args&... args)
 {
-    ::SerializeMany(s, std::forward<Args>(args)...);
+    ::SerializeMany(s, args...);
 }
 
 template<typename Stream, typename... Args>
-inline void SerReadWriteMany(Stream& s, CSerActionUnserialize ser_action, Args&... args)
+inline void SerReadWriteMany(Stream& s, CSerActionUnserialize ser_action, Args&&... args)
 {
     ::UnserializeMany(s, args...);
 }
