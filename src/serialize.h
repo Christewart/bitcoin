@@ -416,8 +416,6 @@ I ReadVarInt(Stream& is)
     }
 }
 
-#define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
-
 /** Wrapper for serializing ranges of chars. */
 template<typename C>
 class CharArrayWrapper
@@ -507,13 +505,14 @@ public:
 template<typename I> static inline CompactSizeWrapper<const I> COMPACTSIZE(const I& i) { return CompactSizeWrapper<const I>(i); }
 template<typename I> static inline CompactSizeWrapper<I> COMPACTSIZE(I& i) { return CompactSizeWrapper<I>(i); }
 
+/** Serialization wrapper class for strings of limited length. */
 template<size_t Limit>
-class LimitedString
+class LimitedStringWrapper
 {
 protected:
-    std::string& string;
+    std::string& m_string;
 public:
-    explicit LimitedString(std::string& _string) : string(_string) {}
+    explicit LimitedStringWrapper(std::string& string) : m_string(string) {}
 
     template<typename Stream>
     void Unserialize(Stream& s)
@@ -522,19 +521,23 @@ public:
         if (size > Limit) {
             throw std::ios_base::failure("String length limit exceeded");
         }
-        string.resize(size);
-        if (size != 0)
-            s.read((char*)string.data(), size);
+        m_string.resize(size);
+        if (size != 0) {
+            s.read(&m_string[0], size);
+        }
     }
 
     template<typename Stream>
     void Serialize(Stream& s) const
     {
-        WriteCompactSize(s, string.size());
-        if (!string.empty())
-            s.write((char*)string.data(), string.size());
+        s << m_string;
     }
 };
+//! Add a LimitedString wrapper around a const string (identity)
+template<size_t I> static inline const std::string& LimitedString(const std::string& str) { return str; }
+//! Add a LimitedString wrapper around a non-const string
+template<size_t I> static inline LimitedStringWrapper<I> LimitedString(std::string& str) { return LimitedStringWrapper<I>(str); }
+#define LIMITED_STRING(obj, n) LimitedString<n>(obj)
 
 /** Serialization wrapper class for big-endian integers.
  *
@@ -573,6 +576,7 @@ public:
 //! Automatically construct a BigEndianWrapper around the argument.
 template<typename I> static inline BigEndianWrapper<const I> BigEndian(const I& i) { return BigEndianWrapper<const I>(i); }
 template<typename I> static inline BigEndianWrapper<I> BigEndian(I& i) { return BigEndianWrapper<I>(i); }
+
 
 /**
  * Forward declarations
