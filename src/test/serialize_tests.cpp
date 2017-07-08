@@ -19,11 +19,15 @@ protected:
     int intval;
     bool boolval;
     std::string stringval;
-    const char* charstrval;
+    char charstrval[16];
     CTransactionRef txval;
 public:
     CSerializeMethodsTestSingle() = default;
-    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char* charstrvalin, CTransaction txvalin) : intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), charstrval(charstrvalin), txval(MakeTransactionRef(txvalin)){}
+    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char *charstrvalin, CTransaction txvalin) : intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), txval(MakeTransactionRef(txvalin))
+    {
+        memcpy(charstrval, charstrvalin, 16);
+    }
+
     ADD_SERIALIZE_METHODS;
 
     template <typename Stream, typename Operation>
@@ -344,7 +348,7 @@ BOOST_AUTO_TEST_CASE(class_methods)
     int intval(100);
     bool boolval(true);
     std::string stringval("testing");
-    const char* charstrval("testing charstr");
+    const char charstrval[16] = "testing charstr";
     CMutableTransaction txval;
     CSerializeMethodsTestSingle methodtest1(intval, boolval, stringval, charstrval, txval);
     CSerializeMethodsTestMany methodtest2(intval, boolval, stringval, charstrval, txval);

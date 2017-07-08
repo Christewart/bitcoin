@@ -59,6 +59,11 @@ inline T* NCONST_PTR(const T* val)
     return const_cast<T*>(val);
 }
 
+//! Safely convert odd char pointer types to standard ones.
+static inline char* CharCast(char* c) { return c; }
+static inline char* CharCast(unsigned char* c) { return (char*)c; }
+static inline const char* CharCast(const char* c) { return c; }
+static inline const char* CharCast(const unsigned char* c) { return (const char*)c; }
 /*
  * Lowest-level serialization and conversion.
  * @note Sizes of these types are verified in the tests
@@ -225,6 +230,8 @@ template<typename X> const X&& AsBaseType(const X&& x) { return std::move(x); }
 
 
 template<typename Stream> inline void Serialize(Stream& s, char a    ) { ser_writedata8(s, a); } // TODO Get rid of bare char
+template<typename Stream, int N> inline void Serialize(Stream& s, const char (&a)[N]) { s.write(a, N); }
+template<typename Stream, int N> inline void Serialize(Stream& s, const unsigned char (&a)[N]) { s.write(CharCast(a), N); }
 template<typename Stream> inline void Serialize(Stream& s, int8_t a  ) { ser_writedata8(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, uint8_t a ) { ser_writedata8(s, a); }
 template<typename Stream> inline void Serialize(Stream& s, int16_t a ) { ser_writedata16(s, a); }
@@ -237,6 +244,8 @@ template<typename Stream> inline void Serialize(Stream& s, float a   ) { ser_wri
 template<typename Stream> inline void Serialize(Stream& s, double a  ) { ser_writedata64(s, ser_double_to_uint64(a)); }
 
 template<typename Stream> inline void Unserialize(Stream& s, char& a    ) { a = ser_readdata8(s); } // TODO Get rid of bare char
+template<typename Stream, int N> inline void Unserialize(Stream& s, char (&a)[N]) { s.read(a, N); }
+template<typename Stream, int N> inline void Unserialize(Stream& s, unsigned char (&a)[N]) { s.read(CharCast(a), N); }
 template<typename Stream> inline void Unserialize(Stream& s, int8_t& a  ) { a = ser_readdata8(s); }
 template<typename Stream> inline void Unserialize(Stream& s, uint8_t& a ) { a = ser_readdata8(s); }
 template<typename Stream> inline void Unserialize(Stream& s, int16_t& a ) { a = ser_readdata16(s); }
@@ -407,48 +416,38 @@ I ReadVarInt(Stream& is)
     }
 }
 
-#define FLATDATA(obj) REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
-/** 
- * Wrapper for serializing arrays and POD.
- */
-class CFlatData
+/** Wrapper for serializing ranges of chars. */
+template<typename C>
+class CharArrayWrapper
 {
 protected:
-    char* pbegin;
-    char* pend;
+    C* m_begin;
+    size_t m_size;
 public:
-    CFlatData(void* pbeginIn, void* pendIn) : pbegin((char*)pbeginIn), pend((char*)pendIn) { }
-    template <class T, class TAl>
-    explicit CFlatData(std::vector<T,TAl> &v)
+    CharArrayWrapper(C* begin, size_t size) : m_begin(begin), m_size(size)
     {
-        pbegin = (char*)v.data();
-        pend = (char*)(v.data() + v.size());
+        static_assert(sizeof(C) == 1, "CharArrayWrapper only works for char types");
     }
-    template <unsigned int N, typename T, typename S, typename D>
-    explicit CFlatData(prevector<N, T, S, D> &v)
-    {
-        pbegin = (char*)v.data();
-        pend = (char*)(v.data() + v.size());
-    }
-    char* begin() { return pbegin; }
-    const char* begin() const { return pbegin; }
-    char* end() { return pend; }
-    const char* end() const { return pend; }
 
     template<typename Stream>
     void Serialize(Stream& s) const
     {
-        s.write(pbegin, pend - pbegin);
+        s.write(m_begin, m_size);
     }
 
     template<typename Stream>
     void Unserialize(Stream& s)
     {
-        s.read(pbegin, pend - pbegin);
+        s.read(m_begin, m_size);
     }
 };
+//! Construct a FlatRange wrapper around an object that exposes .data() and .size()
+template<typename T> static inline CharArrayWrapper<const char> CharArray(const T& t) { return CharArrayWrapper<const char>(CharCast(t.data()), t.size()); }
+template<typename T> static inline CharArrayWrapper<char> CharArray(T& t) { return CharArrayWrapper<char>(CharCast(t.data()), t.size()); }
+//! Helper macro to easily serialize char arrays.
+#define FLATDATA(x) (x)
 
 /** Serialization wrapper class for integers in VarInt format. */
 template<typename I>

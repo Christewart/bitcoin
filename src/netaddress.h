@@ -132,7 +132,7 @@ class CSubNet
         inline void SerializationOp(Stream& s, Operation ser_action) {
             READWRITE(network);
             READWRITE(FLATDATA(netmask));
-            READWRITE(FLATDATA(valid));
+            READWRITE(valid);
         }
 };
 
