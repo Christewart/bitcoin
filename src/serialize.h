@@ -409,7 +409,6 @@ I ReadVarInt(Stream& is)
 
 #define FLATDATA(obj) REF(CFlatData((char*)&(obj), (char*)&(obj) + sizeof(obj)))
 #define VARINT(obj) REF(WrapVarInt(REF(obj)))
-#define COMPACTSIZE(obj) REF(CCompactSize(REF(obj)))
 #define LIMITED_STRING(obj,n) REF(LimitedString< n >(REF(obj)))
 
 /** 
@@ -471,23 +470,38 @@ public:
     }
 };
 
-class CCompactSize
+/** Serialization wrapper class for integers in CompactSize format. */
+template<typename I>
+class CompactSizeWrapper
 {
 protected:
-    uint64_t &n;
+    I &m_n;
 public:
-    explicit CCompactSize(uint64_t& nIn) : n(nIn) { }
-
-    template<typename Stream>
-    void Serialize(Stream &s) const {
-        WriteCompactSize<Stream>(s, n);
+    explicit CompactSizeWrapper(I& n) : m_n(n)
+    {
+        static_assert(std::is_unsigned<I>::value, "CompactSize only supported for unsigned integers");
+        static_assert(std::numeric_limits<I>::max() <= std::numeric_limits<uint64_t>::max(), "CompactSize only supports 64-bit integers and below");
     }
 
     template<typename Stream>
-    void Unserialize(Stream& s) {
-        n = ReadCompactSize<Stream>(s);
+    void Unserialize(Stream& s)
+    {
+        uint64_t n = ReadCompactSize<Stream>(s);
+        if (n > std::numeric_limits<I>::max()) {
+            throw std::ios_base::failure("CompactSize exceeds limit of type");
+        }
+        m_n = n;
+    }
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        WriteCompactSize<Stream>(s, m_n);
     }
 };
+//! Automatically construct a CompactSize wrapper around the argument.
+template<typename I> static inline CompactSizeWrapper<const I> COMPACTSIZE(const I& i) { return CompactSizeWrapper<const I>(i); }
+template<typename I> static inline CompactSizeWrapper<I> COMPACTSIZE(I& i) { return CompactSizeWrapper<I>(i); }
 
 template<size_t Limit>
 class LimitedString
@@ -558,7 +572,6 @@ template<typename I> static inline BigEndianWrapper<I> BigEndian(I& i) { return 
 
 template<typename I>
 CVarInt<I> WrapVarInt(I& n) { return CVarInt<I>(n); }
-
 
 /**
  * Forward declarations
