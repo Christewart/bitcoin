@@ -42,31 +42,12 @@ static const unsigned int MAX_VECTOR_ALLOCATE = 5000000;
 struct deserialize_type {};
 constexpr deserialize_type deserialize {};
 
-/**
- * Used to bypass the rule against non-const reference to temporary
- * where it makes sense with wrappers such as CFlatData or CTxDB
- */
-template<typename T>
-inline T& REF(const T& val)
-{
-    return const_cast<T&>(val);
-}
-
-/**
- * Used to acquire a non-const pointer "this" to generate bodies
- * of const serialization operations from a template
- */
-template<typename T>
-inline T* NCONST_PTR(const T* val)
-{
-    return const_cast<T*>(val);
-}
-
 //! Safely convert odd char pointer types to standard ones.
 static inline char* CharCast(char* c) { return c; }
 static inline char* CharCast(unsigned char* c) { return (char*)c; }
 static inline const char* CharCast(const char* c) { return c; }
 static inline const char* CharCast(const unsigned char* c) { return (const char*)c; }
+
 /*
  * Lowest-level serialization and conversion.
  * @note Sizes of these types are verified in the tests
@@ -191,22 +172,6 @@ template<typename X> const X&& AsBaseType(const X&& x) { return std::move(x); }
  *  of casting manually, as it will not inadvertently remove constness.
  */
 #define READWRITEAS(obj, typ) (::SerReadWriteMany(s, ser_action, AsBaseType<typ>(obj)))
-
-/** 
- * Implement three methods for serializable objects. These are actually wrappers over
- * "SerializationOp" template, which implements the body of each class' serialization
- * code. Adding "ADD_SERIALIZE_METHODS" in the body of the class causes these wrappers to be
- * added as members. 
- */
-#define ADD_SERIALIZE_METHODS                                         \
-    template<typename Stream>                                         \
-    void Serialize(Stream& s) const {                                 \
-        NCONST_PTR(this)->SerializationOp(s, CSerActionSerialize());  \
-    }                                                                 \
-    template<typename Stream>                                         \
-    void Unserialize(Stream& s) {                                     \
-        SerializationOp(s, CSerActionUnserialize());                  \
-    }
 
 /**
  * Implement the Serialize and Unserialize methods by delegating to a single templated
@@ -447,8 +412,6 @@ public:
 //! Construct a FlatRange wrapper around an object that exposes .data() and .size()
 template<typename T> static inline CharArrayWrapper<const char> CharArray(const T& t) { return CharArrayWrapper<const char>(CharCast(t.data()), t.size()); }
 template<typename T> static inline CharArrayWrapper<char> CharArray(T& t) { return CharArrayWrapper<char>(CharCast(t.data()), t.size()); }
-//! Helper macro to easily serialize char arrays.
-#define FLATDATA(x) (x)
 
 /** Serialization wrapper class for integers in VarInt format. */
 template<typename I>
@@ -992,7 +955,7 @@ void Unserialize(Stream& is, std::shared_ptr<const T>& p)
 
 
 /**
- * Support for ADD_SERIALIZE_METHODS and READWRITE macro
+ * Support for SERIALIZE_METHODS and READWRITE macro
  */
 struct CSerActionSerialize
 {
