@@ -23,20 +23,18 @@ protected:
     CTransactionRef txval;
 public:
     CSerializeMethodsTestSingle() = default;
-    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char *charstrvalin, CTransaction txvalin) : intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), txval(MakeTransactionRef(txvalin))
+    CSerializeMethodsTestSingle(int intvalin, bool boolvalin, std::string stringvalin, const char* charstrvalin, CTransaction txvalin) : intval(intvalin), boolval(boolvalin), stringval(std::move(stringvalin)), txval(MakeTransactionRef(txvalin))
     {
         memcpy(charstrval, charstrvalin, 16);
     }
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(intval);
-        READWRITE(boolval);
-        READWRITE(stringval);
-        READWRITE(FLATDATA(charstrval));
-        READWRITE(txval);
+    SERIALIZE_METHODS(CSerializeMethodsTestSingle, obj)
+    {
+        READWRITE(obj.intval);
+        READWRITE(obj.boolval);
+        READWRITE(obj.stringval);
+        READWRITE(obj.charstrval);
+        READWRITE(obj.txval);
     }
 
     bool operator==(const CSerializeMethodsTestSingle& rhs)
@@ -53,11 +51,10 @@ class CSerializeMethodsTestMany : public CSerializeMethodsTestSingle
 {
 public:
     using CSerializeMethodsTestSingle::CSerializeMethodsTestSingle;
-    ADD_SERIALIZE_METHODS;
 
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        READWRITE(intval, boolval, stringval, FLATDATA(charstrval), txval);
+    SERIALIZE_METHODS(CSerializeMethodsTestMany, obj)
+    {
+        READWRITE(obj.intval, obj.boolval, obj.stringval, obj.charstrval, obj.txval);
     }
 };
 
@@ -364,7 +361,7 @@ BOOST_AUTO_TEST_CASE(class_methods)
     BOOST_CHECK(methodtest2 == methodtest3);
     BOOST_CHECK(methodtest3 == methodtest4);
 
-    CDataStream ss2(SER_DISK, PROTOCOL_VERSION, intval, boolval, stringval, FLATDATA(charstrval), txval);
+    CDataStream ss2(SER_DISK, PROTOCOL_VERSION, intval, boolval, stringval, charstrval, txval);
     ss2 >> methodtest3;
     BOOST_CHECK(methodtest3 == methodtest4);
 }
