@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_WALLETMODEL_H
 #define BITCOIN_QT_WALLETMODEL_H
 
+#include <qt/guiutil.h>
 #include <qt/paymentrequestplus.h>
 #include <qt/walletmodeltransaction.h>
 
@@ -64,35 +65,15 @@ public:
     static const int CURRENT_VERSION = 1;
     int nVersion;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        std::string sAddress = address.toStdString();
-        std::string sLabel = label.toStdString();
-        std::string sMessage = message.toStdString();
-        std::string sPaymentRequest;
-        if (!ser_action.ForRead() && paymentRequest.IsInitialized())
-            paymentRequest.SerializeToString(&sPaymentRequest);
-        std::string sAuthenticatedMerchant = authenticatedMerchant.toStdString();
-
-        READWRITE(this->nVersion);
-        READWRITE(sAddress);
-        READWRITE(sLabel);
-        READWRITE(amount);
-        READWRITE(sMessage);
-        READWRITE(sPaymentRequest);
-        READWRITE(sAuthenticatedMerchant);
-
-        if (ser_action.ForRead())
-        {
-            address = QString::fromStdString(sAddress);
-            label = QString::fromStdString(sLabel);
-            message = QString::fromStdString(sMessage);
-            if (!sPaymentRequest.empty())
-                paymentRequest.parse(QByteArray::fromRawData(sPaymentRequest.data(), sPaymentRequest.size()));
-            authenticatedMerchant = QString::fromStdString(sAuthenticatedMerchant);
-        }
+    SERIALIZE_METHODS(SendCoinsRecipient, obj)
+    {
+        READWRITE(obj.nVersion);
+        READWRITE(GUIUtil::AsStdString(obj.address));
+        READWRITE(GUIUtil::AsStdString(obj.label));
+        READWRITE(obj.amount);
+        READWRITE(GUIUtil::AsStdString(obj.message));
+        READWRITE(GUIUtil::Proto(obj.paymentRequest));
+        READWRITE(GUIUtil::AsStdString(obj.authenticatedMerchant));
     }
 };
 
