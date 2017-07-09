@@ -240,10 +240,9 @@ int test_one_input(std::vector<uint8_t> buffer) {
         case CTXOUTCOMPRESSOR_DESERIALIZE:
         {
             CTxOut to;
-            CTxOutCompressor toc(to);
             try
             {
-                ds >> toc;
+                ds >> TxOutCompress(to);
             } catch (const std::ios_base::failure& e) {return 0;}
 
             break;

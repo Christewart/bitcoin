@@ -10,10 +10,6 @@
 #include <script/script.h>
 #include <serialize.h>
 
-class CKeyID;
-class CPubKey;
-class CScriptID;
-
 bool CompressScript(const CScript& script, std::vector<unsigned char> &out);
 unsigned int GetSpecialScriptSize(unsigned int nSize);
 bool DecompressScript(CScript& script, unsigned int nSize, const std::vector<unsigned char> &out);
@@ -32,7 +28,8 @@ uint64_t DecompressAmount(uint64_t nAmount);
  *  Other scripts up to 121 bytes require 1 byte + script length. Above
  *  that, scripts up to 16505 bytes require 2 bytes + script length.
  */
-class CScriptCompressor
+template<typename S>
+class ScriptCompressionWrapper
 {
 private:
     /**
@@ -43,9 +40,9 @@ private:
      */
     static const unsigned int nSpecialScripts = 6;
 
-    CScript &script;
+    S &script;
 public:
-    explicit CScriptCompressor(CScript &scriptIn) : script(scriptIn) { }
+    explicit ScriptCompressionWrapper(S &scriptIn) : script(scriptIn) { }
 
     template<typename Stream>
     void Serialize(Stream &s) const {
@@ -81,30 +78,40 @@ public:
     }
 };
 
-/** wrapper for CTxOut that provides a more compact serialization */
-class CTxOutCompressor
+template<typename I>
+class AmountCompressionWrapper
 {
-private:
-    CTxOut &txout;
-
+    I& m_val;
 public:
-    explicit CTxOutCompressor(CTxOut &txoutIn) : txout(txoutIn) { }
-
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        if (!ser_action.ForRead()) {
-            uint64_t nVal = CompressAmount(txout.nValue);
-            READWRITE(VARINT(nVal));
-        } else {
-            uint64_t nVal = 0;
-            READWRITE(VARINT(nVal));
-            txout.nValue = DecompressAmount(nVal);
-        }
-        CScriptCompressor cscript(REF(txout.scriptPubKey));
-        READWRITE(cscript);
+    explicit AmountCompressionWrapper(I& val) : m_val(val) {}
+    template<typename Stream> void Serialize(Stream& s) const
+    {
+        s << VARINT(CompressAmount(m_val));
+    }
+    template<typename Stream> void Unserialize(Stream& s)
+    {
+        uint64_t v;
+        s >> VARINT(v);
+        m_val = DecompressAmount(v);
     }
 };
+
+template<typename S> ScriptCompressionWrapper<S> ScriptCompress(S& s) { return ScriptCompressionWrapper<S>(s); }
+template<typename I> AmountCompressionWrapper<I> AmountCompress(I& i) { return AmountCompressionWrapper<I>(i); }
+
+/** wrapper for CTxOut that provides a more compact serialization */
+template<typename O>
+class TxOutCompressionWrapper
+{
+private:
+    O &txout;
+public:
+    TxOutCompressionWrapper(O &txoutIn) : txout(txoutIn) { }
+    SERIALIZE_METHODS(TxOutCompressionWrapper<O>, obj) {
+        READWRITE(AmountCompress(obj.txout.nValue), ScriptCompress(obj.txout.scriptPubKey));
+    }
+};
+
+template<typename O> TxOutCompressionWrapper<O> TxOutCompress(O& o) { return TxOutCompressionWrapper<O>(o); }
 
 #endif // BITCOIN_COMPRESSOR_H

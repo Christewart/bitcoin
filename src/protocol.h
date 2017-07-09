@@ -325,7 +325,7 @@ public:
 
     void Init();
 
-    SERIALIZE_METHODS(Caddress, obj)
+    SERIALIZE_METHODS(CAddress, obj)
     {
         int nVersion = s.GetVersion();
         if (s.GetType() & SER_DISK) {
