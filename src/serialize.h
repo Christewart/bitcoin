@@ -580,6 +580,68 @@ public:
 template<typename I> static inline BigEndianWrapper<const I> BigEndian(const I& i) { return BigEndianWrapper<const I>(i); }
 template<typename I> static inline BigEndianWrapper<I> BigEndian(I& i) { return BigEndianWrapper<I>(i); }
 
+/** Serialization wrapper for custom-element vectors.
+ *
+ * This allows (de)serialization of vectors of type V while using a custom
+ * serializer W for the entries inside.
+ *
+ * For const-correctness, the W parameter is a template itself.
+ * It is instantiated as W<const V::value_type> when serializing, and as
+ * W<V::value_type> when deserializing.
+ *
+ * Example:
+ *   struct X {
+ *     std::vector<uint64_t> v;
+ *     SERIALIZE_METHODS(X, obj) { READWRITE(VectorApply<VarIntWrapper>(obj.v)); }
+ *   };
+ * will define a struct that contains a vector of uint64_t, which is serialized
+ * as a vector of VarInt-encoded integers.
+ *
+ * V is not required to be an std::vector type. It works for any class that
+ * exposes a value_type, size, reserve, push_back, and const operator[].
+ */
+template<template <typename> class W, typename V> class VectorApplyWrapper
+{
+protected:
+    typedef typename V::value_type value_type;
+    V& m_vector;
+public:
+    explicit VectorApplyWrapper(V& vector) : m_vector(vector) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        WriteCompactSize(s, m_vector.size());
+        for (size_t i = 0; i < m_vector.size(); ++i) {
+            s << W<const value_type>(m_vector[i]);
+        }
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        m_vector.clear();
+        size_t size = ReadCompactSize(s);
+        size_t allocated = 0;
+        while (allocated < size) {
+            // For DoS prevention, do not blindly allocate as much as the stream claims to contain.
+            // Instead, allocate in 5MiB batches, so that an attacker actually needs to provide
+            // X MiB of data to make us allocate X+5 Mib.
+            allocated = std::min(size, allocated + MAX_VECTOR_ALLOCATE / sizeof(value_type));
+            m_vector.reserve(allocated);
+            while (m_vector.size() < allocated) {
+                value_type val;
+                W<value_type> elem(val);
+                s >> elem;
+                m_vector.push_back(std::move(val));
+            }
+        }
+    }
+};
+//! Automatically add a a VectorApply wrapper around the argument.
+template<template <typename> class W, typename V> static inline VectorApplyWrapper<W,const V> VectorApply(const V& vec) { return VectorApplyWrapper<W,const V>(vec); }
+template<template <typename> class W, typename V> static inline VectorApplyWrapper<W,typename std::remove_reference<V>::type> VectorApply(V&& vec) { return VectorApplyWrapper<W,typename std::remove_reference<V>::type>(vec); }
+
 
 /**
  * Forward declarations
