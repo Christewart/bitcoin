@@ -290,6 +290,8 @@ libbitcoin_consensus_a_SOURCES = \
   consensus/validation.h \
   hash.cpp \
   hash.h \
+  lottery.cpp \
+  lottery.h \
   prevector.h \
   primitives/block.cpp \
   primitives/block.h \
