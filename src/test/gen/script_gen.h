@@ -29,6 +29,8 @@ rc::Gen<T> P2WPKHSPK();
 
 rc::Gen<T> P2WSHSPK();
 
+//rc::Gen<T> MBVSPK();
+
 namespace rc {
   
   template<>
