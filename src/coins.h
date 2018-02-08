@@ -24,7 +24,7 @@
  *
  * Serialized format:
  * - VARINT((coinbase ? 1 : 0) | (height << 1))
- * - the non-spent CTxOut (via CTxOutCompressor)
+ * - the non-spent CTxOut (via TxOutCompress)
  */
 class Coin
 {
@@ -60,7 +60,7 @@ public:
         assert(!IsSpent());
         uint32_t code = nHeight * 2 + fCoinBase;
         ::Serialize(s, VARINT(code));
-        ::Serialize(s, CTxOutCompressor(REF(out)));
+        ::Serialize(s, TxOutCompress(out));
     }
 
     template<typename Stream>
@@ -69,7 +69,7 @@ public:
         ::Unserialize(s, VARINT(code));
         nHeight = code >> 1;
         fCoinBase = code & 1;
-        ::Unserialize(s, REF(CTxOutCompressor(out)));
+        ::Unserialize(s, TxOutCompress(out));
     }
 
     bool IsSpent() const {

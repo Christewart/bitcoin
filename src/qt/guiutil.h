@@ -8,6 +8,7 @@
 #include <amount.h>
 #include <fs.h>
 
+#include <QDateTime>
 #include <QEvent>
 #include <QHeaderView>
 #include <QMessageBox>
@@ -243,6 +244,82 @@ namespace GUIUtil
     typedef ClickableProgressBar ProgressBar;
 #endif
 
+//! Wrapper class to serialize QDateTime objects as 32-bit time_t.
+template<typename Q>
+class AsTimeTWrapper
+{
+private:
+    Q& m_qdatetime;
+public:
+    AsTimeTWrapper(Q& qdatetime) : m_qdatetime(qdatetime) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const { s << (uint32_t)m_qdatetime.toTime_t(); }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        uint32_t timeval;
+        s >> timeval;
+        m_qdatetime = QDateTime::fromTime_t(timeval);
+    }
+};
+template<typename Q> AsTimeTWrapper<Q> AsTimeT(Q& qdatetime) { return AsTimeTWrapper<Q>(qdatetime); }
+
+//! Wrapper class to serialize QString objects as std::strings.
+template<typename Q>
+class AsStdStringWrapper
+{
+private:
+    Q& m_qstring;
+public:
+    AsStdStringWrapper(Q& qstring) : m_qstring(qstring) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const { s << m_qstring.toStdString(); }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        std::string str;
+        s >> str;
+        m_qstring = QString::fromStdString(std::move(str));
+    }
+};
+template<typename Q> AsStdStringWrapper<Q> AsStdString(Q& qstring) { return AsStdStringWrapper<Q>(qstring); }
+
+//! Wrapper class to serialize protobuf objects
+template<typename Q>
+class ProtoWrapper
+{
+private:
+    Q& m_proto;
+public:
+    ProtoWrapper(Q& proto) : m_proto(proto) {}
+
+    template<typename Stream>
+    void Serialize(Stream& s) const
+    {
+        std::string tmp;
+        if (m_proto.IsInitialized()) {
+            m_proto.SerializeToString(&tmp);
+        }
+        s << tmp;
+    }
+
+    template<typename Stream>
+    void Unserialize(Stream& s)
+    {
+        std::string tmp;
+        s >> tmp;
+        if (!tmp.empty()) {
+            m_proto.parse(QByteArray::fromRawData(tmp.data(), tmp.size()));
+        }
+    }
+};
+template<typename Q> ProtoWrapper<Q> Proto(Q& proto) { return ProtoWrapper<Q>(proto); }
+
 } // namespace GUIUtil
+
 
 #endif // BITCOIN_QT_GUIUTIL_H

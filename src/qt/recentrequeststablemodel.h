@@ -5,6 +5,7 @@
 #ifndef BITCOIN_QT_RECENTREQUESTSTABLEMODEL_H
 #define BITCOIN_QT_RECENTREQUESTSTABLEMODEL_H
 
+#include <qt/guiutil.h>
 #include <qt/walletmodel.h>
 
 #include <QAbstractTableModel>
@@ -24,19 +25,9 @@ public:
     QDateTime date;
     SendCoinsRecipient recipient;
 
-    ADD_SERIALIZE_METHODS;
-
-    template <typename Stream, typename Operation>
-    inline void SerializationOp(Stream& s, Operation ser_action) {
-        unsigned int nDate = date.toTime_t();
-
-        READWRITE(this->nVersion);
-        READWRITE(id);
-        READWRITE(nDate);
-        READWRITE(recipient);
-
-        if (ser_action.ForRead())
-            date = QDateTime::fromTime_t(nDate);
+    SERIALIZE_METHODS(RecentRequestEntry, obj)
+    {
+        READWRITE(obj.nVersion, obj.id, GUIUtil::AsTimeT(obj.date), obj.recipient);
     }
 };
 
