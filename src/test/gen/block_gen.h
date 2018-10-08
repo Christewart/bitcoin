@@ -1,10 +1,10 @@
 #ifndef BITCOIN_TEST_GEN_BLOCK_GEN_H
 #define BITCOIN_TEST_GEN_BLOCK_GEN_H
 
-#include "test/gen/crypto_gen.h"
-#include "test/gen/transaction_gen.h"
-#include "uint256.h"
-#include "primitives/block.h"
+#include <test/gen/crypto_gen.h>
+#include <test/gen/transaction_gen.h>
+#include <uint256.h>
+#include <primitives/block.h>
 
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>

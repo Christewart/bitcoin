@@ -1,10 +1,10 @@
-#include "test/gen/script_gen.h"
+#include <test/gen/script_gen.h>
 
-#include "test/gen/crypto_gen.h"
-#include "script/script.h"
-#include "script/standard.h"
-#include "base58.h"
-#include "core_io.h"
+#include <test/gen/crypto_gen.h>
+#include <script/script.h>
+#include <script/standard.h>
+#include <base58.h>
+#include <core_io.h>
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
 #include <rapidcheck/gen/Predicate.h>

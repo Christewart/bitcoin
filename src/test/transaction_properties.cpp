@@ -1,16 +1,16 @@
 
-#include "test/gen/transaction_gen.h"
+#include <test/gen/transaction_gen.h>
 
-#include "key.h"
-#include "base58.h"
-#include "script/script.h"
-#include "policy/policy.h"
-#include "primitives/transaction.h"
-#include "uint256.h"
-#include "util.h"
-#include "utilstrencodings.h"
-#include "test/test_bitcoin.h"
-#include "streams.h"
+#include <key.h>
+#include <base58.h>
+#include <script/script.h>
+#include <policy/policy.h>
+#include <primitives/transaction.h>
+#include <uint256.h>
+#include <util.h>
+#include <utilstrencodings.h>
+#include <test/test_bitcoin.h>
+#include <streams.h>
 #include <string>
 #include <vector>
 

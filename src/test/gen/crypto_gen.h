@@ -1,9 +1,9 @@
 #ifndef BITCOIN_TEST_GEN_CRYPTO_GEN_H
 #define BITCOIN_TEST_GEN_CRYPTO_GEN_H
 
-#include "key.h"
-#include "random.h"
-#include "uint256.h"
+#include <key.h>
+#include <random.h>
+#include <uint256.h>
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
 #include <rapidcheck/gen/Create.h>

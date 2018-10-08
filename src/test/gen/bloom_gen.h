@@ -1,8 +1,8 @@
 #ifndef BITCOIN_TEST_GEN_BLOOM_GEN_H
 #define BITCOIN_TEST_GEN_BLOOM_GEN_H
 
-#include "bloom.h"
-#include "merkleblock.h"
+#include <bloom.h>
+#include <merkleblock.h>
 
 #include <math.h>
 

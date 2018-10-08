@@ -4,8 +4,8 @@
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
 
-#include "merkleblock.h"
-#include "test/gen/block_gen.h"
+#include <merkleblock.h>
+#include <test/gen/block_gen.h>
 
 #include <iostream>
 namespace rc

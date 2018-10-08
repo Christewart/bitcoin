@@ -3,9 +3,9 @@
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
 
-#include "test/test_bitcoin.h"
-#include "primitives/block.h"
-#include "test/gen/block_gen.h"
+#include <test/test_bitcoin.h>
+#include <primitives/block.h>
+#include <test/gen/block_gen.h>
 
 
 BOOST_FIXTURE_TEST_SUITE(block_properties, BasicTestingSetup)

@@ -1,7 +1,7 @@
-#include "test/gen/bloom_gen.h"
-#include "test/gen/crypto_gen.h"
+#include <test/gen/bloom_gen.h>
+#include <test/gen/crypto_gen.h>
 
-#include "bloom.h"
+#include <bloom.h>
 #include <math.h>
 
 #include <rapidcheck/gen/Arbitrary.h>

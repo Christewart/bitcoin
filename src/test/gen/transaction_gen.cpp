@@ -1,13 +1,13 @@
-#include "test/gen/transaction_gen.h"
+#include <test/gen/transaction_gen.h>
 
-#include "test/gen/crypto_gen.h"
-#include "test/gen/script_gen.h"
+#include <test/gen/crypto_gen.h>
+#include <test/gen/script_gen.h>
 
-#include "script/sign.h"
-#include "script/script.h"
-#include "primitives/transaction.h"
-#include "core_io.h"
-#include "keystore.h"
+#include <script/sign.h>
+#include <script/script.h>
+#include <primitives/transaction.h>
+#include <core_io.h>
+#include <keystore.h>
 
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>

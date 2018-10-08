@@ -1,4 +1,4 @@
-#include "test/gen/block_gen.h"
+#include <test/gen/block_gen.h>
 
 #include <rapidcheck/Gen.h>
 

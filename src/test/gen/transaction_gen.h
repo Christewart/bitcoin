@@ -1,12 +1,12 @@
 #ifndef BITCOIN_TEST_GEN_TRANSACTION_GEN_H
 #define BITCOIN_TEST_GEN_TRANSACTION_GEN_H
 
-#include "test/gen/crypto_gen.h"
-#include "test/gen/script_gen.h"
+#include <test/gen/crypto_gen.h>
+#include <test/gen/script_gen.h>
 
-#include "script/script.h"
-#include "primitives/transaction.h"
-#include "amount.h"
+#include <script/script.h>
+#include <primitives/transaction.h>
+#include <amount.h>
 
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>

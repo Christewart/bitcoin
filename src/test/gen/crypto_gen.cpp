@@ -1,6 +1,6 @@
-#include "test/gen/crypto_gen.h"
+#include <test/gen/crypto_gen.h>
 
-#include "key.h"
+#include <key.h>
 
 #include <rapidcheck/gen/Arbitrary.h>
 #include <rapidcheck/Gen.h>
