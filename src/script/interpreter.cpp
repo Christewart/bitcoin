@@ -13,7 +13,8 @@
 #include <uint256.h>
 #include <util/strencodings.h>
 #include <streams.h>
-
+#include <core_io.h>
+#include <iostream>
 typedef std::vector<unsigned char> valtype;
 
 namespace {
@@ -1595,6 +1596,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     //ss << txTmp << nHashType;
 
     hash_out = ss.GetSHA256();
+    printf("Serialized Witness Transaction hash %s\n", HexStr(hash_out).c_str());
     return true;
 }
 
@@ -1861,6 +1863,13 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
 
 uint256 ComputeTapleafHash(uint8_t leaf_version, const CScript& script)
 {
+
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << leaf_version;
+    stream << script;
+
+    std::cout << "script " <<  ScriptToAsmStr(script) << "\n";
+    printf("ComputeTapleafHash %s\n",HexStr(stream).c_str());
     return (CHashWriter(HASHER_TAPLEAF) << leaf_version << script).GetSHA256();
 }
 
@@ -1882,6 +1891,7 @@ uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint25
         }
         k = ss_branch.GetSHA256();
     }
+    printf("ComputeTaprootMerkleRoot %s\n",HexStr(k).c_str());
     return k;
 }
 
@@ -1889,6 +1899,10 @@ static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, c
 {
     assert(control.size() >= TAPROOT_CONTROL_BASE_SIZE);
     assert(program.size() >= uint256::size());
+    printf("VerifyTaprootCommitment\n");
+    printf("controlBlock %s\n", HexStr(control).c_str());
+    printf("program %s\n", HexStr(program).c_str());
+    printf("tapleaf_hash %s\n", HexStr(tapleaf_hash).c_str());
     //! The internal pubkey (x-only, so no Y coordinate parity).
     const XOnlyPubKey p{Span{control}.subspan(1, TAPROOT_CONTROL_BASE_SIZE - 1)};
     //! The output pubkey (taken from the scriptPubKey).
@@ -1957,6 +1971,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
             }
             execdata.m_tapleaf_hash = ComputeTapleafHash(control[0] & TAPROOT_LEAF_MASK, exec_script);
+	    printf("m_tapleaf_hash %s\n", HexStr(execdata.m_tapleaf_hash).c_str());
             if (!VerifyTaprootCommitment(control, program, execdata.m_tapleaf_hash)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }

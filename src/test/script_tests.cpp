@@ -1738,9 +1738,10 @@ BOOST_AUTO_TEST_CASE(script_assets_test)
     UniValue tests = read_json(data);
     BOOST_CHECK(tests.isArray());
     BOOST_CHECK(tests.size() > 0);
-
+    
+    printf("tests.size() %i", tests.size());
     for (size_t i = 0; i < tests.size(); i++) {
-	printf("Running test\n");
+	printf("Running test");
         AssetTest(tests[i]);
     }
     file.close();
