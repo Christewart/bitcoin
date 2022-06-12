@@ -11,6 +11,8 @@
 #include <pubkey.h>
 #include <script/script.h>
 #include <uint256.h>
+#include <util/strencodings.h>
+#include <streams.h>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -1343,9 +1345,12 @@ template <class T>
 uint256 GetPrevoutsSHA256(const T& txTo)
 {
     CHashWriter ss(SER_GETHASH, 0);
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     for (const auto& txin : txTo.vin) {
         ss << txin.prevout;
+	stream << txin.prevout;
     }
+    printf("prevout stream %s\n", HexStr(stream).c_str());
     return ss.GetSHA256();
 }
 
@@ -1477,6 +1482,7 @@ static bool HandleMissingData(MissingDataBehavior mdb)
 template<typename T>
 bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache, MissingDataBehavior mdb)
 {
+    printf("SignatureHashSchnorr\n");
     uint8_t ext_flag, key_version;
     switch (sigversion) {
     case SigVersion::TAPROOT:
@@ -1500,28 +1506,38 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     }
 
     CHashWriter ss = HASHER_TAPSIGHASH;
-
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     // Epoch
     static constexpr uint8_t EPOCH = 0;
     ss << EPOCH;
-
+    stream << EPOCH;
     // Hash type
     const uint8_t output_type = (hash_type == SIGHASH_DEFAULT) ? SIGHASH_ALL : (hash_type & SIGHASH_OUTPUT_MASK); // Default (no sighash byte) is equivalent to SIGHASH_ALL
     const uint8_t input_type = hash_type & SIGHASH_INPUT_MASK;
     if (!(hash_type <= 0x03 || (hash_type >= 0x81 && hash_type <= 0x83))) return false;
     ss << hash_type;
+    stream << hash_type;
 
     // Transaction level data
     ss << tx_to.nVersion;
+    stream << tx_to.nVersion;
     ss << tx_to.nLockTime;
+    stream << tx_to.nLockTime;
     if (input_type != SIGHASH_ANYONECANPAY) {
+	printf("input_type != SIGHASH_ANYONECANPAY\n");
         ss << cache.m_prevouts_single_hash;
         ss << cache.m_spent_amounts_single_hash;
         ss << cache.m_spent_scripts_single_hash;
         ss << cache.m_sequences_single_hash;
+
+        stream << cache.m_prevouts_single_hash;
+        stream << cache.m_spent_amounts_single_hash;
+        stream << cache.m_spent_scripts_single_hash;
+        stream << cache.m_sequences_single_hash;
     }
     if (output_type == SIGHASH_ALL) {
         ss << cache.m_outputs_single_hash;
+        stream << cache.m_outputs_single_hash;
     }
 
     // Data about the input/prevout being spent
@@ -1529,15 +1545,22 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     const bool have_annex = execdata.m_annex_present;
     const uint8_t spend_type = (ext_flag << 1) + (have_annex ? 1 : 0); // The low bit indicates whether an annex is present.
     ss << spend_type;
+    stream << spend_type;
     if (input_type == SIGHASH_ANYONECANPAY) {
         ss << tx_to.vin[in_pos].prevout;
         ss << cache.m_spent_outputs[in_pos];
         ss << tx_to.vin[in_pos].nSequence;
+
+        stream << tx_to.vin[in_pos].prevout;
+        stream << cache.m_spent_outputs[in_pos];
+        stream << tx_to.vin[in_pos].nSequence;
     } else {
         ss << in_pos;
+        stream << in_pos;
     }
     if (have_annex) {
         ss << execdata.m_annex_hash;
+        stream << execdata.m_annex_hash;
     }
 
     // Data about the output (if only one).
@@ -1549,6 +1572,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
             execdata.m_output_hash = sha_single_output.GetSHA256();
         }
         ss << execdata.m_output_hash.value();
+        stream << execdata.m_output_hash.value();
     }
 
     // Additional data for BIP 342 signatures
@@ -1556,9 +1580,19 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
         assert(execdata.m_tapleaf_hash_init);
         ss << execdata.m_tapleaf_hash;
         ss << key_version;
+        stream << execdata.m_tapleaf_hash;
+        stream << key_version;
         assert(execdata.m_codeseparator_pos_init);
         ss << execdata.m_codeseparator_pos;
+        stream << execdata.m_codeseparator_pos;
     }
+
+    //CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
+    //stream << txTmp << nHashType; 
+    //stream << ss ; 
+    printf("Serialized Witness Transaction for schnorr sig: %s\n", HexStr(stream).c_str());
+    //CHashWriter ss(SER_GETHASH, 0);
+    //ss << txTmp << nHashType;
 
     hash_out = ss.GetSHA256();
     return true;
