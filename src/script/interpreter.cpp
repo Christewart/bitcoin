@@ -1855,6 +1855,9 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
     // Run the script interpreter.
     if (!EvalScript(stack, exec_script, flags, checker, sigversion, execdata, serror)) return false;
 
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << stack;
+    printf("end stack: %s\n",HexStr(stream).c_str());
     // Scripts inside witness implicitly require cleanstack behaviour
     if (stack.size() != 1) return set_error(serror, SCRIPT_ERR_CLEANSTACK);
     if (!CastToBool(stack.back())) return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
@@ -1882,6 +1885,7 @@ uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint25
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
+	printf("%i\n",i);
         CHashWriter ss_branch{HASHER_TAPBRANCH};
         Span node{Span{control}.subspan(TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * i, TAPROOT_CONTROL_NODE_SIZE)};
         if (std::lexicographical_compare(k.begin(), k.end(), node.begin(), node.end())) {
@@ -1890,6 +1894,7 @@ uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint25
             ss_branch << node << k;
         }
         k = ss_branch.GetSHA256();
+	printf("k %s\n",HexStr(k).c_str());
     }
     printf("ComputeTaprootMerkleRoot %s\n",HexStr(k).c_str());
     return k;

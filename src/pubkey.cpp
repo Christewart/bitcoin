@@ -16,6 +16,11 @@
 #include <algorithm>
 #include <cassert>
 
+#include <util/strencodings.h>
+#include <streams.h>
+#include <core_io.h>
+#include <iostream>
+
 namespace
 {
 /* Global secp256k1_context object used for verification. */
@@ -229,6 +234,11 @@ bool XOnlyPubKey::CheckTapTweak(const XOnlyPubKey& internal, const uint256& merk
     secp256k1_xonly_pubkey internal_key;
     if (!secp256k1_xonly_pubkey_parse(secp256k1_context_verify, &internal_key, internal.data())) return false;
     uint256 tweak = internal.ComputeTapTweakHash(&merkle_root);
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+    stream << tweak;
+    printf("ComputeTapTweak %s\n", HexStr(tweak).c_str());
+    printf("internal %s\n",HexStr(internal).c_str());
+    printf("parity %i\n",parity);
     return secp256k1_xonly_pubkey_tweak_add_check(secp256k1_context_verify, m_keydata.begin(), parity, &internal_key, tweak.begin());
 }
 
