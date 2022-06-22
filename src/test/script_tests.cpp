@@ -1699,7 +1699,7 @@ static void AssetTest(const UniValue& test)
         }
     }
 
-    if (test.exists("failure")) {
+    /*if (test.exists("failure")) {
         mtx.vin[idx].scriptSig = ScriptFromHex(test["failure"]["scriptSig"].get_str());
         mtx.vin[idx].scriptWitness = ScriptWitnessFromJSON(test["failure"]["witness"]);
         CTransaction tx(mtx);
@@ -1713,7 +1713,7 @@ static void AssetTest(const UniValue& test)
                 BOOST_CHECK(!ret);
             }
         }
-    }
+    }*/
 }
 
 BOOST_AUTO_TEST_CASE(script_assets_test)

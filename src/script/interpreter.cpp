@@ -322,6 +322,7 @@ public:
 
 static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& fSuccess)
 {
+    printf("EvalChecksigPretapscript");
     assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0);
 
     // Subset of script starting at the most recent codeseparator
@@ -363,16 +364,21 @@ static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, Scr
         assert(execdata.m_validation_weight_left_init);
         execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
         if (execdata.m_validation_weight_left < 0) {
+    printf("1\n");
             return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
         }
     }
     if (pubkey.size() == 0) {
+	printf("2\n");
         return set_error(serror, SCRIPT_ERR_PUBKEYTYPE);
     } else if (pubkey.size() == 32) {
+
         if (success && !checker.CheckSchnorrSignature(sig, pubkey, sigversion, execdata, serror)) {
+	    printf("3\n");
             return false; // serror is set
         }
     } else {
+        printf("4\n");
         /*
          *  New public key version softforks should be defined before this `else` block.
          *  Generally, the new code should not do anything but failing the script execution. To avoid
@@ -382,7 +388,7 @@ static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, Scr
             return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_PUBKEYTYPE);
         }
     }
-
+printf("5\n");
     return true;
 }
 
@@ -396,10 +402,13 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
     switch (sigversion) {
     case SigVersion::BASE:
     case SigVersion::WITNESS_V0:
+        printf("sigVersion BASE OR WITNESS V0");
         return EvalChecksigPreTapscript(sig, pubkey, pbegincodehash, pend, flags, checker, sigversion, serror, success);
     case SigVersion::TAPSCRIPT:
+        printf("sigVersion tapscript");
         return EvalChecksigTapscript(sig, pubkey, execdata, flags, checker, sigversion, serror, success);
     case SigVersion::TAPROOT:
+        printf("sigVersion taproot");
         // Key path spending in Taproot has no script, so this is unreachable.
         break;
     }
@@ -448,6 +457,14 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             if (vchPushValue.size() > MAX_SCRIPT_ELEMENT_SIZE)
                 return set_error(serror, SCRIPT_ERR_PUSH_SIZE);
+
+	    printf("opcode %s\n", GetOpName(opcode).c_str());
+
+            CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
+	    stream << stack << "\n"; 
+	    printf("stack: %s\n", HexStr(stream).c_str());
+
+
 
             if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0) {
                 // Note how OP_RESERVED does not count towards the opcode limit.
@@ -1100,6 +1117,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     popstack(stack);
                     popstack(stack);
                     popstack(stack);
+		    printf("OP_CHECKSIGADD success %i\n",success);
                     stack.push_back((num + (success ? 1 : 0)).getvch());
                 }
                 break;
@@ -1516,6 +1534,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     const uint8_t output_type = (hash_type == SIGHASH_DEFAULT) ? SIGHASH_ALL : (hash_type & SIGHASH_OUTPUT_MASK); // Default (no sighash byte) is equivalent to SIGHASH_ALL
     const uint8_t input_type = hash_type & SIGHASH_INPUT_MASK;
     if (!(hash_type <= 0x03 || (hash_type >= 0x81 && hash_type <= 0x83))) return false;
+    printf("hash_type %i\n",hash_type);
     ss << hash_type;
     stream << hash_type;
 
@@ -1548,6 +1567,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     ss << spend_type;
     stream << spend_type;
     if (input_type == SIGHASH_ANYONECANPAY) {
+	printf("SIGHASH_ANYONECANPAY\n");
         ss << tx_to.vin[in_pos].prevout;
         ss << cache.m_spent_outputs[in_pos];
         ss << tx_to.vin[in_pos].nSequence;
@@ -1858,6 +1878,7 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
     CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     stream << stack;
     printf("end stack: %s\n",HexStr(stream).c_str());
+    printf("end stack size: %d\n", stack.size());
     // Scripts inside witness implicitly require cleanstack behaviour
     if (stack.size() != 1) return set_error(serror, SCRIPT_ERR_CLEANSTACK);
     if (!CastToBool(stack.back())) return set_error(serror, SCRIPT_ERR_EVAL_FALSE);
@@ -1871,8 +1892,8 @@ uint256 ComputeTapleafHash(uint8_t leaf_version, const CScript& script)
     stream << leaf_version;
     stream << script;
 
-    std::cout << "script " <<  ScriptToAsmStr(script) << "\n";
-    printf("ComputeTapleafHash %s\n",HexStr(stream).c_str());
+    //std::cout << "script " <<  ScriptToAsmStr(script) << "\n";
+    //printf("ComputeTapleafHash %s\n",HexStr(stream).c_str());
     return (CHashWriter(HASHER_TAPLEAF) << leaf_version << script).GetSHA256();
 }
 
@@ -1885,7 +1906,7 @@ uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint25
     const int path_len = (control.size() - TAPROOT_CONTROL_BASE_SIZE) / TAPROOT_CONTROL_NODE_SIZE;
     uint256 k = tapleaf_hash;
     for (int i = 0; i < path_len; ++i) {
-	printf("%i\n",i);
+	//printf("%i\n",i);
         CHashWriter ss_branch{HASHER_TAPBRANCH};
         Span node{Span{control}.subspan(TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * i, TAPROOT_CONTROL_NODE_SIZE)};
         if (std::lexicographical_compare(k.begin(), k.end(), node.begin(), node.end())) {
@@ -1894,7 +1915,7 @@ uint256 ComputeTaprootMerkleRoot(Span<const unsigned char> control, const uint25
             ss_branch << node << k;
         }
         k = ss_branch.GetSHA256();
-	printf("k %s\n",HexStr(k).c_str());
+	//printf("k %s\n",HexStr(k).c_str());
     }
     printf("ComputeTaprootMerkleRoot %s\n",HexStr(k).c_str());
     return k;
@@ -1920,6 +1941,7 @@ static bool VerifyTaprootCommitment(const std::vector<unsigned char>& control, c
 
 static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, const std::vector<unsigned char>& program, unsigned int flags, const BaseSignatureChecker& checker, ScriptError* serror, bool is_p2sh)
 {
+
     CScript exec_script; //!< Actually executed script (last stack item in P2WSH; implied P2PKH script in P2WPKH; leaf script in P2TR)
     Span stack{witness.stack};
     ScriptExecutionData execdata;
@@ -1951,11 +1973,17 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
     } else if (witversion == 1 && program.size() == WITNESS_V1_TAPROOT_SIZE && !is_p2sh) {
         // BIP341 Taproot: 32-byte non-P2SH witness v1 program (which encodes a P2C-tweaked pubkey)
         if (!(flags & SCRIPT_VERIFY_TAPROOT)) return set_success(serror);
+	printf("TAPROOT FLAG SET\n");
         if (stack.size() == 0) return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_WITNESS_EMPTY);
         if (stack.size() >= 2 && !stack.back().empty() && stack.back()[0] == ANNEX_TAG) {
+	    printf("DROPPING ANNEX!\n");
             // Drop annex (this is non-standard; see IsWitnessStandard)
             const valtype& annex = SpanPopBack(stack);
             execdata.m_annex_hash = (CHashWriter(SER_GETHASH, 0) << annex).GetSHA256();
+            CDataStream annexStream(SER_NETWORK, PROTOCOL_VERSION);
+	    //annexStream << annex << "\n"; 
+	    annexStream << execdata.m_annex_hash << "\n"; 
+	    printf("annexStream: %s\n", HexStr(annexStream).c_str());
             execdata.m_annex_present = true;
         } else {
             execdata.m_annex_present = false;
