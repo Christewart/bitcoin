@@ -322,7 +322,7 @@ public:
 
 static bool EvalChecksigPreTapscript(const valtype& vchSig, const valtype& vchPubKey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& fSuccess)
 {
-    printf("EvalChecksigPretapscript");
+    printf("EvalChecksigPretapscript\n");
     assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0);
 
     // Subset of script starting at the most recent codeseparator
@@ -399,16 +399,17 @@ printf("5\n");
  */
 static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::const_iterator pbegincodehash, CScript::const_iterator pend, ScriptExecutionData& execdata, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptError* serror, bool& success)
 {
+    printf("EvalChecksig.pubkey=%s\n", HexStr(pubkey).c_str());
     switch (sigversion) {
     case SigVersion::BASE:
     case SigVersion::WITNESS_V0:
-        printf("sigVersion BASE OR WITNESS V0");
+        printf("sigVersion BASE OR WITNESS V0\n");
         return EvalChecksigPreTapscript(sig, pubkey, pbegincodehash, pend, flags, checker, sigversion, serror, success);
     case SigVersion::TAPSCRIPT:
-        printf("sigVersion tapscript");
+        printf("sigVersion tapscript\n");
         return EvalChecksigTapscript(sig, pubkey, execdata, flags, checker, sigversion, serror, success);
     case SigVersion::TAPROOT:
-        printf("sigVersion taproot");
+        printf("sigVersion taproot\n");
         // Key path spending in Taproot has no script, so this is unreachable.
         break;
     }
@@ -1086,7 +1087,11 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vchPubKey = stacktop(-1);
 
                     bool fSuccess = true;
-                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, fSuccess)) return false;
+                    if (!EvalChecksig(vchSig, vchPubKey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, fSuccess)) { 
+                         printf("Failed OP_CHECKSIG");
+		         return false;
+	            }
+		    printf("OP_CHECKSIG fSuccess %i\n",fSuccess);
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(fSuccess ? vchTrue : vchFalse);
@@ -1113,7 +1118,11 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     const valtype& pubkey = stacktop(-1);
 
                     bool success = true;
-                    if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success)) return false;
+                    if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success))  {
+		      printf("success false in OP_CHECKSIGADD");
+		      return false;
+		    }
+		    printf("OP_CHECKSIGADD success %i\n",success);
                     popstack(stack);
                     popstack(stack);
                     popstack(stack);
@@ -1606,6 +1615,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
         assert(execdata.m_codeseparator_pos_init);
         ss << execdata.m_codeseparator_pos;
         stream << execdata.m_codeseparator_pos;
+	printf("codeseparator %i\n",execdata.m_codeseparator_pos);
     }
 
     //CDataStream stream(SER_NETWORK, PROTOCOL_VERSION); 
@@ -1625,6 +1635,7 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
 {
     assert(nIn < txTo.vin.size());
 
+    CDataStream stream(SER_NETWORK, PROTOCOL_VERSION);
     if (sigversion == SigVersion::WITNESS_V0) {
         uint256 hashPrevouts;
         uint256 hashSequence;
@@ -1651,9 +1662,12 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
         CHashWriter ss(SER_GETHASH, 0);
         // Version
         ss << txTo.nVersion;
+        stream << txTo.nVersion;
         // Input prevouts/nSequence (none/all, depending on flags)
         ss << hashPrevouts;
+        stream << hashPrevouts;
         ss << hashSequence;
+        stream << hashSequence;
         // The input being signed (replacing the scriptSig with scriptCode + amount)
         // The prevout may already be contained in hashPrevout, and the nSequence
         // may already be contain in hashSequence.
@@ -1661,13 +1675,21 @@ uint256 SignatureHash(const CScript& scriptCode, const T& txTo, unsigned int nIn
         ss << scriptCode;
         ss << amount;
         ss << txTo.vin[nIn].nSequence;
+        stream << txTo.vin[nIn].prevout;
+        stream << scriptCode;
+        stream << amount;
+        stream << txTo.vin[nIn].nSequence;
         // Outputs (none/one/all, depending on flags)
         ss << hashOutputs;
+        stream << hashOutputs;
         // Locktime
         ss << txTo.nLockTime;
+        stream << txTo.nLockTime;
         // Sighash type
         ss << nHashType;
+        stream << nHashType;
 
+        printf("Serialized Witness Transaction for schnorr sig: %s\n", HexStr(stream).c_str());
         return ss.GetHash();
     }
 
@@ -1856,6 +1878,7 @@ static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CS
             }
             // New opcodes will be listed here. May use a different sigversion to modify existing opcodes.
             if (IsOpSuccess(opcode)) {
+		printf("Exiting script immediately as we encountered OP_SUCCESS");
                 if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
                     return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
                 }
