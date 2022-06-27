@@ -364,7 +364,7 @@ static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, Scr
         assert(execdata.m_validation_weight_left_init);
         execdata.m_validation_weight_left -= VALIDATION_WEIGHT_PER_SIGOP_PASSED;
         if (execdata.m_validation_weight_left < 0) {
-    printf("1\n");
+            printf("1\n");
             return set_error(serror, SCRIPT_ERR_TAPSCRIPT_VALIDATION_WEIGHT);
         }
     }
@@ -388,7 +388,7 @@ static bool EvalChecksigTapscript(const valtype& sig, const valtype& pubkey, Scr
             return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_PUBKEYTYPE);
         }
     }
-printf("5\n");
+    printf("5\n");
     return true;
 }
 
@@ -1511,6 +1511,7 @@ template<typename T>
 bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, const T& tx_to, uint32_t in_pos, uint8_t hash_type, SigVersion sigversion, const PrecomputedTransactionData& cache, MissingDataBehavior mdb)
 {
     printf("SignatureHashSchnorr\n");
+    printf("inputIndex %d\n",in_pos);
     uint8_t ext_flag, key_version;
     switch (sigversion) {
     case SigVersion::TAPROOT:
@@ -1563,6 +1564,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
         stream << cache.m_spent_amounts_single_hash;
         stream << cache.m_spent_scripts_single_hash;
         stream << cache.m_sequences_single_hash;
+	printf("sequence hash %s\n",HexStr(cache.m_sequences_single_hash).c_str());
     }
     if (output_type == SIGHASH_ALL) {
         ss << cache.m_outputs_single_hash;
@@ -1587,10 +1589,12 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     } else {
         ss << in_pos;
         stream << in_pos;
+	printf("in_pos %i\n",in_pos);
     }
     if (have_annex) {
         ss << execdata.m_annex_hash;
         stream << execdata.m_annex_hash;
+	printf("annex_hash %s\n",HexStr(execdata.m_annex_hash).c_str());
     }
 
     // Data about the output (if only one).
@@ -1598,8 +1602,13 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
         if (in_pos >= tx_to.vout.size()) return false;
         if (!execdata.m_output_hash) {
             CHashWriter sha_single_output(SER_GETHASH, 0);
+            CDataStream stream3(SER_NETWORK, PROTOCOL_VERSION);
+	    stream3 << tx_to.vout[in_pos];
+	    printf("SIGHASH_SINGLE output %s\n",HexStr(stream3).c_str());
             sha_single_output << tx_to.vout[in_pos];
             execdata.m_output_hash = sha_single_output.GetSHA256();
+	    //stream3 << execdata.m_output_hash;
+	    printf("SIGHASH_SINGLE HASH %s\n",HexStr(execdata.m_output_hash.value()).c_str());
         }
         ss << execdata.m_output_hash.value();
         stream << execdata.m_output_hash.value();
@@ -1609,6 +1618,7 @@ bool SignatureHashSchnorr(uint256& hash_out, ScriptExecutionData& execdata, cons
     if (sigversion == SigVersion::TAPSCRIPT) {
         assert(execdata.m_tapleaf_hash_init);
         ss << execdata.m_tapleaf_hash;
+	printf("tapleaf hash %s\n",HexStr(execdata.m_tapleaf_hash).c_str());
         ss << key_version;
         stream << execdata.m_tapleaf_hash;
         stream << key_version;
@@ -1771,6 +1781,7 @@ bool GenericTransactionSignatureChecker<T>::CheckSchnorrSignature(Span<const uns
     if (!SignatureHashSchnorr(sighash, execdata, *txTo, nIn, hashtype, sigversion, *this->txdata, m_mdb)) {
         return set_error(serror, SCRIPT_ERR_SCHNORR_SIG_HASHTYPE);
     }
+    printf("SignatureHashSchnorr %s\n",HexStr(sighash).c_str());
     if (!VerifySchnorrSignature(sig, pubkey, sighash)) return set_error(serror, SCRIPT_ERR_SCHNORR_SIG);
     return true;
 }
