@@ -252,6 +252,21 @@ OP_NOP10 = CScriptOp(0xb9)
 # BIP 342 opcodes (Tapscript)
 OP_CHECKSIGADD = CScriptOp(0xba)
 
+# Arithmetic opcodes
+OP_ADD64 = CScriptOp(0xd7)
+OP_SUB64 = CScriptOp(0xd8)
+OP_MUL64 = CScriptOp(0xd9)
+OP_DIV64 = CScriptOp(0xda)
+OP_NEG64 = CScriptOp(0xdb)
+OP_LESSTHAN64 = CScriptOp(0xdc)
+OP_LESSTHANOREQUAL64 = CScriptOp(0xdd)
+OP_GREATERTHAN64 = CScriptOp(0xde)
+OP_GREATERTHANOREQUAL64 = CScriptOp(0xdf)
+
+# Conversion opcodes
+OP_SCRIPTNUMTOLE64 = CScriptOp(0xe0)
+OP_LE64TOSCRIPTNUM = CScriptOp(0xe1)
+OP_LE32TOLE64 = CScriptOp(0xe2)
 OP_INVALIDOPCODE = CScriptOp(0xff)
 
 OPCODE_NAMES.update({
@@ -368,6 +383,18 @@ OPCODE_NAMES.update({
     OP_NOP10: 'OP_NOP10',
     OP_CHECKSIGADD: 'OP_CHECKSIGADD',
     OP_INVALIDOPCODE: 'OP_INVALIDOPCODE',
+    OP_ADD64: 'OP_ADD64',
+    OP_SUB64: 'OP_SUB64',
+    OP_MUL64: 'OP_MUL64',
+    OP_DIV64: 'OP_DIV64',
+    OP_LESSTHAN64: 'OP_LESSTHAN64',
+    OP_LESSTHANOREQUAL64: 'OP_LESSTHANOREQUAL64',
+    OP_GREATERTHAN64: 'OP_GREATERTHAN64',
+    OP_GREATERTHANOREQUAL64: 'OP_GREATERTHANOREQUAL64',
+    OP_NEG64: 'OP_NEG64',
+    OP_SCRIPTNUMTOLE64: 'OP_SCRIPTNUMTOLE64',
+    OP_LE64TOSCRIPTNUM: 'OP_LE64TOSCRIPTNUM',
+    OP_LE32TOLE64: 'OP_LE32TOLE64',
 })
 
 class CScriptInvalidError(Exception):
@@ -924,4 +951,4 @@ def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
     return TaprootInfo(CScript([OP_1, tweaked]), pubkey, negated + 0, tweak, leaves, h, tweaked)
 
 def is_op_success(o):
-    return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
+    return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xd6) or (o >= 0xe3 and o <= 0xfe)
