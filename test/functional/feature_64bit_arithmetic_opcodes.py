@@ -5,15 +5,12 @@
 
 #
 # Test for taproot sighash algorithm with pegins and issuances
-
-from random import randint
 from test_framework.util import assert_raises_rpc_error, satoshi_round
-from test_framework.key import ECKey, compute_xonly_pubkey, generate_privkey, sign_schnorr
+from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COIN, COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import CScript, CScriptNum, CScriptOp, OP_0, OP_1, OP_2, OP_ADD64, OP_SUB64, OP_MUL64, OP_DIV64, OP_LESSTHAN64, OP_LESSTHANOREQUAL64, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_NEG64, OP_SCRIPTNUMTOLE64, OP_LE64TOSCRIPTNUM, OP_LE32TOLE64,  OP_AND, OP_DROP, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_FALSE, OP_FROMALTSTACK, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_SIZE, OP_SUB64, OP_SWAP, OP_TOALTSTACK, OP_VERIFY, OP_XOR, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY
+from test_framework.script import CScript, CScriptNum, CScriptOp, OP_1, OP_ADD64, OP_SUB64, OP_MUL64, OP_DIV64, OP_LESSTHAN64, OP_LESSTHANOREQUAL64, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_NEG64, OP_SCRIPTNUMTOLE64, OP_LE64TOSCRIPTNUM, OP_LE32TOLE64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_SUB64, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY
 from test_framework.address import output_key_to_p2tr
-import os
 
 VALID_SIGHASHES_ECDSA = [
     SIGHASH_ALL,
@@ -160,15 +157,11 @@ class Arithmetic64bitTest(BitcoinTestFramework):
             assert_raises_rpc_error(-26, fail, self.nodes[0].sendrawtransaction, tx.serialize().hex())
             return
 
-
-        tx_hex = tx.serialize().hex()
-
         self.nodes[0].sendrawtransaction(hexstring = tx.serialize().hex())
         self.nodes[0].generate(1, invalid_call=False)
         last_blk = self.nodes[0].getblock(self.nodes[0].getbestblockhash())
         tx.rehash()
         assert(tx.hash in last_blk['tx'])
-
 
     def run_test(self):
         self.log.info("Starting test case!")

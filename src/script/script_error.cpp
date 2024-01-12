@@ -115,7 +115,7 @@ std::string ScriptErrorString(const ScriptError serror)
             return "Using OP_CODESEPARATOR in non-witness script";
         case SCRIPT_ERR_SIG_FINDANDDELETE:
             return "Signature is found in scriptCode";
-        case SCRIPT_ERR_EXPECTED_8BYTES: 
+        case SCRIPT_ERR_EXPECTED_8BYTES:
             return "Arithmetic opcodes expect 8 bytes operands";
         case SCRIPT_ERR_ARITHMETIC64:
             return "Arithmetic opcode error";
