@@ -1088,6 +1088,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // (sig num pubkey -- num)
                     if (stack.size() < 3) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
+                    if (execdata.leaf_version == TAPROOT_LEAF_TAPSCRIPT_NUKE_CHECKSIGADD) return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE);
+
                     const valtype& sig = stacktop(-3);
                     const CScriptNum num(stacktop(-2), fRequireMinimal);
                     const valtype& pubkey = stacktop(-1);
@@ -1926,13 +1928,14 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
             if (control.size() < TAPROOT_CONTROL_BASE_SIZE || control.size() > TAPROOT_CONTROL_MAX_SIZE || ((control.size() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE) != 0) {
                 return set_error(serror, SCRIPT_ERR_TAPROOT_WRONG_CONTROL_SIZE);
             }
+            execdata.leaf_version = control[0] & TAPROOT_LEAF_MASK;
             execdata.m_tapleaf_hash = ComputeTapleafHash(control[0] & TAPROOT_LEAF_MASK, script);
             if (!VerifyTaprootCommitment(control, program, execdata.m_tapleaf_hash)) {
                 return set_error(serror, SCRIPT_ERR_WITNESS_PROGRAM_MISMATCH);
             }
             execdata.m_tapleaf_hash_init = true;
-            if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT) {
-                // Tapscript (leaf version 0xc0)
+            if (execdata.leaf_version == TAPROOT_LEAF_TAPSCRIPT || execdata.leaf_version == TAPROOT_LEAF_TAPSCRIPT_NUKE_CHECKSIGADD) {
+                // Tapscript (leaf version 0xc0 and 0x66)
                 exec_script = CScript(script.begin(), script.end());
                 execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
                 execdata.m_validation_weight_left_init = true;
