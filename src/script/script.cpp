@@ -14,6 +14,8 @@
 
 #include <string>
 
+#include <iostream>
+
 CScriptID::CScriptID(const CScript& in) : BaseHash(Hash160(in)) {}
 
 std::string GetOpName(opcodetype opcode)
@@ -324,12 +326,14 @@ bool GetScriptOp(CScriptBase::const_iterator& pc, CScriptBase::const_iterator en
         }
         else if (opcode == OP_PUSHDATA1)
         {
+            std::cout << "OP_PUSHDATA1, but we don't have anything to push... failing\n";
             if (end - pc < 1)
                 return false;
             nSize = *pc++;
         }
         else if (opcode == OP_PUSHDATA2)
         {
+            
             if (end - pc < 2)
                 return false;
             nSize = ReadLE16(&pc[0]);

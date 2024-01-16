@@ -11,6 +11,8 @@
 #include <pubkey.h>
 #include <script/script.h>
 #include <uint256.h>
+#include <iostream>
+#include "core_io.h"
 
 typedef std::vector<unsigned char> valtype;
 
@@ -424,6 +426,7 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
 {
+    //std::cout << "EvalScript() " << ScriptToAsmStr(script) << "\n";
     static const CScriptNum bnZero(0);
     static const CScriptNum bnOne(1);
     // static const CScriptNum bnFalse(0);
@@ -1960,19 +1963,21 @@ template class GenericTransactionSignatureChecker<CMutableTransaction>;
 static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CScript& exec_script, unsigned int flags, SigVersion sigversion, const BaseSignatureChecker& checker, ScriptExecutionData& execdata, ScriptError* serror)
 {
     std::vector<valtype> stack{stack_span.begin(), stack_span.end()};
-
+    std::cout << "ExecuteWitnessScript() exec_script " << ScriptToAsmStr(exec_script) << "\n";
     if (sigversion == SigVersion::TAPSCRIPT) {
         // OP_SUCCESSx processing overrides everything, including stack element size limits
         CScript::const_iterator pc = exec_script.begin();
         while (pc < exec_script.end()) {
             opcodetype opcode;
             if (!exec_script.GetOp(pc, opcode)) {
+                std::cout << "bad op code " << opcode << "\n";
                 // Note how this condition would not be reached if an unknown OP_SUCCESSx was found
                 return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
             // New opcodes will be listed here. May use a different sigversion to modify existing opcodes.
             if (IsOpSuccess(opcode, execdata.leaf_version)) {
                 if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
+                    std::cout << "discourage op success\n";
                     return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
                 }
                 return set_success(serror);
