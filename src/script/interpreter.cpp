@@ -1963,14 +1963,14 @@ template class GenericTransactionSignatureChecker<CMutableTransaction>;
 static bool ExecuteWitnessScript(const Span<const valtype>& stack_span, const CScript& exec_script, unsigned int flags, SigVersion sigversion, const BaseSignatureChecker& checker, ScriptExecutionData& execdata, ScriptError* serror)
 {
     std::vector<valtype> stack{stack_span.begin(), stack_span.end()};
-    std::cout << "ExecuteWitnessScript() exec_script " << ScriptToAsmStr(exec_script) << "\n";
+    //std::cout << "ExecuteWitnessScript() exec_script " << ScriptToAsmStr(exec_script) << "\n";
     if (sigversion == SigVersion::TAPSCRIPT) {
         // OP_SUCCESSx processing overrides everything, including stack element size limits
         CScript::const_iterator pc = exec_script.begin();
         while (pc < exec_script.end()) {
             opcodetype opcode;
             if (!exec_script.GetOp(pc, opcode)) {
-                std::cout << "bad op code " << opcode << "\n";
+                //std::cout << "bad op code " << opcode << "\n";
                 // Note how this condition would not be reached if an unknown OP_SUCCESSx was found
                 return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
