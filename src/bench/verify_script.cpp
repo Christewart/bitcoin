@@ -10,6 +10,7 @@
 #include <script/interpreter.h>
 #include <script/script.h>
 #include <span.h>
+#include <script/sigversion.h>
 #include <test/util/transaction_utils.h>
 #include <uint256.h>
 
