@@ -588,7 +588,7 @@ public:
 };
 
 /** Test for OP_SUCCESSx opcodes as defined by BIP342. */
-bool IsOpSuccess(const opcodetype& opcode);
+bool IsOpSuccess(const opcodetype& opcode, uint8_t leaf_version);
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode);
 

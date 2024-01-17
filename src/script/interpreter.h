@@ -221,6 +221,9 @@ struct ScriptExecutionData
 
     //! The hash of the corresponding output
     std::optional<uint256> m_output_hash;
+
+    //! The leaf version of the tapleaf
+    uint8_t leaf_version;
 };
 
 /** Signature hash sizes */

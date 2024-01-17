@@ -7,6 +7,7 @@
 
 #include <crypto/common.h>
 #include <hash.h>
+#include <script/interpreter.h>
 #include <uint256.h>
 #include <util/hash_type.h>
 #include <util/strencodings.h>
@@ -338,12 +339,15 @@ bool GetScriptOp(CScriptBase::const_iterator& pc, CScriptBase::const_iterator en
     return true;
 }
 
-bool IsOpSuccess(const opcodetype& opcode)
+bool IsOpSuccess(const opcodetype& opcode, uint8_t leaf_version)
 {
-    return opcode == 80 || opcode == 98 || (opcode >= 126 && opcode <= 129) ||
+    if (leaf_version == TAPROOT_LEAF_TAPSCRIPT) {
+        return opcode == 80 || opcode == 98 || (opcode >= 126 && opcode <= 129) ||
            (opcode >= 131 && opcode <= 134) || (opcode >= 137 && opcode <= 138) ||
            (opcode >= 141 && opcode <= 142) || (opcode >= 149 && opcode <= 153) ||
            (opcode >= 187 && opcode <= 254);
+    }
+    return true;
 }
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode) {
