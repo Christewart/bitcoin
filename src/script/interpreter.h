@@ -178,6 +178,10 @@ struct PrecomputedTransactionData
     //! Whether m_spent_outputs is initialized.
     bool m_spent_outputs_ready = false;
 
+    std::vector<CTxIn> inputs;
+
+    std::vector<CTxOut> outputs;
+
     PrecomputedTransactionData() = default;
 
     /** Initialize this PrecomputedTransactionData with transaction data.
@@ -342,6 +346,13 @@ public:
     }
 
     virtual ~BaseSignatureChecker() = default;
+    virtual PrecomputedTransactionData GetTransactionData() const {
+        return PrecomputedTransactionData();
+    }
+
+    virtual unsigned int GetNIn() const {
+        return 0;
+    }
 };
 
 /** Enum to specify what *TransactionSignatureChecker's behavior should be
@@ -371,6 +382,7 @@ protected:
     virtual bool VerifySchnorrSignature(std::span<const unsigned char> sig, const XOnlyPubKey& pubkey, const uint256& sighash) const;
 
 public:
+    GenericTransactionSignatureChecker(): m_mdb(MissingDataBehavior::ASSERT_FAIL), nIn(0), amount(0), txdata(nullptr) {} //TODO: Comeback and remove this
     GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, MissingDataBehavior mdb) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(nullptr) {}
     GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn, MissingDataBehavior mdb) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(&txdataIn) {}
     bool CheckECDSASignature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
@@ -378,18 +390,27 @@ public:
     bool CheckLockTime(const CScriptNum& nLockTime) const override;
     bool CheckSequence(const CScriptNum& nSequence) const override;
     bool CheckContract(int mode, int index, const std::vector<unsigned char>& pubkey, const std::vector<unsigned char>& data, const std::vector<unsigned char>& taptree, ScriptExecutionData& ScriptExecutionData, ScriptError* serror, TransactionExecutionData* tx_exec_data) const override;
+
+    PrecomputedTransactionData GetTransactionData() const override {
+        return *txdata;
+    }
+
+    unsigned int GetNIn() const override {
+        return nIn;
+    }
 };
 
 using TransactionSignatureChecker = GenericTransactionSignatureChecker<CTransaction>;
 using MutableTransactionSignatureChecker = GenericTransactionSignatureChecker<CMutableTransaction>;
 
+template <class T>
 class DeferringSignatureChecker : public BaseSignatureChecker
 {
 protected:
-    const BaseSignatureChecker& m_checker;
+    const GenericTransactionSignatureChecker<T>& m_checker;
 
 public:
-    DeferringSignatureChecker(const BaseSignatureChecker& checker) : m_checker(checker) {}
+    DeferringSignatureChecker(const GenericTransactionSignatureChecker<T>& checker) : m_checker(checker) {}
 
     bool CheckECDSASignature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override
     {
@@ -408,6 +429,10 @@ public:
     bool CheckSequence(const CScriptNum& nSequence) const override
     {
         return m_checker.CheckSequence(nSequence);
+    }
+
+    PrecomputedTransactionData GetTransactionData() const override {
+        return m_checker.GetTransactionData();
     }
 };
 

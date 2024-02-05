@@ -202,6 +202,8 @@ enum opcodetype
 
     OP_CHECKCONTRACTVERIFY = 0xbb,
 
+    OP_IN_AMOUNT = 0xe3,
+    OP_OUT_AMOUNT = 0xe4,
     OP_INVALIDOPCODE = 0xff,
 };
 
