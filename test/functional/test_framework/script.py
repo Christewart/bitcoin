@@ -253,6 +253,8 @@ OP_CHECKSIGADD = CScriptOp(0xba)
 
 # BIP 348 (OP_SUCCESS204)
 OP_CHECKSIGFROMSTACK = CScriptOp(0xcc)
+OP_IN_AMOUNT = CScriptOp(0xe3)
+OP_OUT_AMOUNT = CScriptOp(0xe4)
 
 OP_INVALIDOPCODE = CScriptOp(0xff)
 
@@ -371,6 +373,8 @@ OPCODE_NAMES.update({
     OP_CHECKSIGADD: 'OP_CHECKSIGADD',
     OP_INVALIDOPCODE: 'OP_INVALIDOPCODE',
     OP_CHECKSIGFROMSTACK: 'OP_CHECKSIGFROMSTACK',
+    OP_IN_AMOUNT: "OP_IN_AMOUNT",
+    OP_OUT_AMOUNT: "OP_OUT_AMOUNT"
 })
 
 class CScriptInvalidError(Exception):
@@ -945,6 +949,8 @@ def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
 # OP_SUCCESS opcodes which have been restricted by softforks.
 OP_SUCCESS_OVERRIDES = frozenset({
     OP_CHECKSIGFROMSTACK,
+    OP_IN_AMOUNT,
+    OP_OUT_AMOUNT
 })
 
 def is_op_success(o):
@@ -953,5 +959,5 @@ def is_op_success(o):
     return (
         o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or
         o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or
-        (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
+        (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe) and o != 0xe3 and o != 0xe4
     )

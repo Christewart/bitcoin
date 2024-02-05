@@ -152,6 +152,8 @@ std::string GetOpName(opcodetype opcode)
     // Tapscript expansion
     case OP_CHECKSIGFROMSTACK       : return "OP_CHECKSIGFROMSTACK";
 
+    case OP_IN_AMOUNT           : return "OP_IN_AMOUNT";
+    case OP_OUT_AMOUNT           : return "OP_OUT_AMOUNT";
     case OP_INVALIDOPCODE          : return "OP_INVALIDOPCODE";
 
     default:
@@ -371,7 +373,7 @@ bool IsOpSuccess(const opcodetype& opcode)
     return opcode == 80 || opcode == 98 || (opcode >= 126 && opcode <= 129) ||
            (opcode >= 131 && opcode <= 134) || (opcode >= 137 && opcode <= 138) ||
            (opcode >= 141 && opcode <= 142) || (opcode >= 149 && opcode <= 153) ||
-           (opcode >= 187 && opcode <= 254);
+           (opcode >= 187 && opcode < 227) || (opcode > 228 && opcode <= 254);
 }
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode) {
