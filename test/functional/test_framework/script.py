@@ -257,6 +257,8 @@ OP_NOP10 = CScriptOp(0xb9)
 # BIP 342 opcodes (Tapscript)
 OP_CHECKSIGADD = CScriptOp(0xba)
 
+OP_INOUT_AMOUNT = CScriptOp(0xe3)
+
 OP_INVALIDOPCODE = CScriptOp(0xff)
 
 OP_VAULT = CScriptOp(0xbb)
@@ -971,6 +973,7 @@ def is_op_success(o):
 op_success_overrides = {
     OP_VAULT,
     OP_VAULT_RECOVER,
+    OP_INOUT_AMOUNT
 }
 
 

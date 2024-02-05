@@ -98,8 +98,10 @@ typedef enum ScriptError_t
     // TODO: currently unused, but should be surfaced somehow to
     // make clear that recovery auth has failed (without losing details) about the sig
     // check failure.
+    SCRIPT_ERR_ERROR_COUNT,
 
-    SCRIPT_ERR_ERROR_COUNT
+    SCRIPT_ERR_INDEX_OUTOFBOUNDS
+
 } ScriptError;
 
 #define SCRIPT_ERR_LAST SCRIPT_ERR_ERROR_COUNT

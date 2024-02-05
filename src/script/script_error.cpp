@@ -139,6 +139,8 @@ std::string ScriptErrorString(const ScriptError serror)
             return "Invalid revault vout index given";
         case SCRIPT_ERR_VAULT_RECOVERY_NOT_REPLACEABLE:
             return "Vault recovery inputs must be replaceable";
+        case SCRIPT_ERR_INDEX_OUTOFBOUNDS:
+            return "Index out of bounds";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;
