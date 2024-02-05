@@ -15,8 +15,6 @@
 
 enum class SigVersion;
 
-enum class SigVersion;
-
 // Maximum number of bytes pushable to the stack
 static const unsigned int MAX_SCRIPT_ELEMENT_SIZE = 520;
 
@@ -202,6 +200,7 @@ enum opcodetype
     // Opcode added by BIP 342 (Tapscript)
     OP_CHECKSIGADD = 0xba,
 
+    OP_INOUT_AMOUNT = 0xe3,
     OP_INVALIDOPCODE = 0xff,
 };
 

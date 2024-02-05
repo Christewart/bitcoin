@@ -289,6 +289,10 @@ public:
         // Delegate to Satisfier.
         return ctx.CheckOlder(sequence.GetInt64());
     }
+
+    PrecomputedTransactionData GetTransactionData() const override {
+        return PrecomputedTransactionData();
+    }
 };
 
 using Fragment = miniscript::Fragment;
