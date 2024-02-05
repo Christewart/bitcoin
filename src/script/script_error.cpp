@@ -117,6 +117,8 @@ std::string ScriptErrorString(const ScriptError serror)
             return "Signature is found in scriptCode";
         case SCRIPT_ERR_ARITHMETIC64:
             return "Arithmetic opcode error";
+        case SCRIPT_ERR_INDEX_OUTOFBOUNDS:
+            return "Index out of bounds";
         case SCRIPT_ERR_UNKNOWN_ERROR:
         case SCRIPT_ERR_ERROR_COUNT:
         default: break;

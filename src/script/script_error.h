@@ -85,7 +85,9 @@ typedef enum ScriptError_t
     SCRIPT_ERR_ERROR_COUNT,
 
     /* 64bit arithmetic opcode errors */
-    SCRIPT_ERR_ARITHMETIC64
+    SCRIPT_ERR_ARITHMETIC64,
+
+    SCRIPT_ERR_INDEX_OUTOFBOUNDS
 
 } ScriptError;
 

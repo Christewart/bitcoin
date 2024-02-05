@@ -268,6 +268,24 @@ CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const S
     }
 }
 
+std::vector<unsigned int> ParseBitMap(const CScriptNum& num) {
+    assert(num > CScriptNum(0)); //maybe we want to allow OP_0 to represent something?
+    const std::vector<unsigned char> bitmap = num.getvch();
+    const auto numBits = bitmap.size() * 8;
+    std::vector<unsigned int> setBitIndexes;
+
+    for (unsigned int i = 0; i < numBits; ++i) {
+        unsigned int byteIndex = i / 8;   // Get byte index
+        unsigned int bitOffset = i % 8;   // Get bit position within byte
+        
+        if (bitmap[byteIndex] & (1 << bitOffset)) {
+            setBitIndexes.push_back(i);
+        }
+    }
+
+    return setBitIndexes;
+}
+
 namespace {
 /** A data type to abstract out the condition stack during script execution.
  *
@@ -1246,6 +1264,40 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 break;
 
+                case OP_INOUT_AMOUNT:
+                {
+                    // Opcodes only available post tapscript_64bit
+                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+                    if (stack.size() < 2) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    CScriptNum bn1 = GetCScriptNum(stacktop(-2), fRequireMinimal, sigversion);
+                    CScriptNum bn2 = GetCScriptNum(stacktop(-1), fRequireMinimal, sigversion);
+                    popstack(stack);
+                    popstack(stack);
+                    std::vector<unsigned int> input_idxs = ParseBitMap(bn1);
+                    std::vector<unsigned int> output_idxs = ParseBitMap(bn2);
+                    int64_t fundingAmount = 0;
+                    for (unsigned int idx: input_idxs) {
+                        if (idx >= checker.GetTransactionData().inputs.size()) { 
+                            return set_error(serror, SCRIPT_ERR_INDEX_OUTOFBOUNDS);
+                        }
+                        fundingAmount += checker.GetTransactionData().m_spent_outputs[idx].nValue;
+                    }
+                    int64_t outAmount = 0;
+                    for (unsigned int idx: output_idxs) {
+                        if (idx >= checker.GetTransactionData().outputs.size()) { 
+                            return set_error(serror, SCRIPT_ERR_INDEX_OUTOFBOUNDS);
+                        }
+                        outAmount += checker.GetTransactionData().outputs[idx].nValue;
+                    }
+                    const CScriptNum input_amount(fundingAmount);
+                    CScriptNum output_amount(outAmount);
+                    stack.push_back(input_amount.getvch());  
+                    stack.push_back(output_amount.getvch());
+
+                }
+                break;
+
                 default:
                     return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
@@ -1431,6 +1483,9 @@ template <class T>
 void PrecomputedTransactionData::Init(const T& txTo, std::vector<CTxOut>&& spent_outputs, bool force)
 {
     assert(!m_spent_outputs_ready);
+
+    inputs = txTo.vin;
+    outputs = txTo.vout;
 
     m_spent_outputs = std::move(spent_outputs);
     if (!m_spent_outputs.empty()) {
