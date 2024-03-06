@@ -12,6 +12,7 @@
 #include <script/script.h>
 #include <script/sigversion.h>
 #include <uint256.h>
+#include <iostream>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -1250,14 +1251,14 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     valtype& vcha = stacktop(-2);
                     valtype& vchb = stacktop(-1);
-                    if (vchb.size() != 8 || vcha.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
 
                     CScriptNum b = CScriptNum(vchb, /*fRequireMinimal=*/true, /*nMaxNumSize=*/8);
-                    CScriptNum a = CScriptNum(vchb, /*fRequireMinimal=*/true, /*nMaxNumSize=*/8);
+                    CScriptNum a = CScriptNum(vcha, /*fRequireMinimal=*/true, /*nMaxNumSize=*/8);
 
                     int64_t bI64 = b.GetInt64();
                     int64_t aI64 = a.GetInt64();
+
+                    std::cout << " a " << aI64 << " b " << bI64 << "\n";
 
                     switch(opcode)
                     {

@@ -171,33 +171,50 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         # short handle to convert int to 8 byte LE
         def le8(x, signed=True):
             return int(x).to_bytes(8, 'little', signed=signed)
+        
+        def encode(num):
+            if (num >= 0 and num <= 16):
+                return CScriptOp.encode_op_n(num)
+            else:
+                return CScriptNum.encode(CScriptNum(num))[1:]
+
+        def encodeWit(num):
+            if (num >= 0 and num <= 16):
+                return int(num).to_bytes(1, 'little', signed=True)
+            else:
+                # need to drop the push ops in CScriptNum as the witness
+                # has already been 'evaluated' (pushed) by the interpreter
+                return CScriptNum.encode(CScriptNum(num))[1:]
 
         def check_add(a, b, c, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_ADD64, OP_VERIFY, le8(c), OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            script = CScript([OP_ADD64, OP_VERIFY, encode(c), OP_EQUAL])
+            # drop push ops via [1:]
+            scriptWit = [encodeWit(a), encodeWit(b)]
+            self.tapscript_satisfy_test(script, inputs = scriptWit, fail=fail)
 
         def check_sub(a, b, c, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_SUB64, OP_VERIFY, le8(c), OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_SUB64, OP_VERIFY, CScriptNum.encode(CScriptNum(c)), OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_mul(a, b, c, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_MUL64, OP_VERIFY, le8(c), OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_MUL64, OP_VERIFY, CScriptNum.encode(CScriptNum(c)), OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_div(a, b, q, r, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_DIV64, OP_VERIFY, le8(q), OP_EQUALVERIFY, le8(r), OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_DIV64, OP_VERIFY, CScriptNum.encode(CScriptNum(q)), OP_EQUALVERIFY, CScriptNum.encode(CScriptNum(r)), OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_le(a, b, res, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_LESSTHAN64, res, OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_LESSTHAN64, res, OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_leq(a, b, res, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_LESSTHANOREQUAL64, res, OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_LESSTHANOREQUAL64, res, OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_ge(a, b, res, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_GREATERTHAN64, res, OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_GREATERTHAN64, res, OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_geq(a, b, res, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_GREATERTHANOREQUAL64, res, OP_EQUAL]), inputs = [le8(a), le8(b)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_GREATERTHANOREQUAL64, res, OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
         def check_neg(a, res, fail=None):
-            self.tapscript_satisfy_test(CScript([OP_NEG64, OP_VERIFY, le8(res), OP_EQUAL]), inputs = [le8(a)], fail=fail)
+            self.tapscript_satisfy_test(CScript([OP_NEG64, OP_VERIFY, CScriptNum.encode(CScriptNum(res)), OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a))], fail=fail)
         # Arithematic opcodes
         self.log.info("Check Arithmetic opcodes")
         check_add(5, 5, 10)
