@@ -1253,57 +1253,60 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     if (vchb.size() != 8 || vcha.size() != 8)
                         return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
 
-                    int64_t b = read_le8_signed(vchb.data());
-                    int64_t a = read_le8_signed(vcha.data());
+                    CScriptNum b = CScriptNum(vchb, /*fRequireMinimal=*/true, /*nMaxNumSize=*/8);
+                    CScriptNum a = CScriptNum(vchb, /*fRequireMinimal=*/true, /*nMaxNumSize=*/8);
+
+                    int64_t bI64 = b.GetInt64();
+                    int64_t aI64 = a.GetInt64();
 
                     switch(opcode)
                     {
                         case OP_ADD64:
-                            if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
-                                (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
+                            if ((aI64 > 0 && bI64 > std::numeric_limits<int64_t>::max() - aI64) ||
+                                (aI64 < 0 && bI64 < std::numeric_limits<int64_t>::min() - aI64))
                                 stack.push_back(vchFalse);
                             else {
                                 popstack(stack);
                                 popstack(stack);
-                                push8_le(stack, a + b);
+                                stack.push_back((a + b).getvch());
                                 stack.push_back(vchTrue);
                             }
                         break;
                         case OP_SUB64:
-                            if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
-                                (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
+                            if ((bI64 > 0 && aI64 < std::numeric_limits<int64_t>::min() + bI64) ||
+                                (bI64 < 0 && aI64 > std::numeric_limits<int64_t>::max() + bI64))
                                 stack.push_back(vchFalse);
                             else {
                                 popstack(stack);
                                 popstack(stack);
-                                push8_le(stack, a - b);
+                                stack.push_back((a - b).getvch());
                                 stack.push_back(vchTrue);
                             }
                         break;
                         case OP_MUL64:
-                            if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
-                                (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
-                                (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
-                                (a < 0 && b < 0 && b < std::numeric_limits<int64_t>::max() / a))
+                            if ((aI64 > 0 && bI64 > 0 && aI64 > std::numeric_limits<int64_t>::max() / bI64) ||
+                                (aI64 > 0 && bI64 < 0 && bI64 < std::numeric_limits<int64_t>::min() / aI64) ||
+                                (aI64 < 0 && bI64 > 0 && aI64 < std::numeric_limits<int64_t>::min() / bI64) ||
+                                (aI64 < 0 && bI64 < 0 && bI64 < std::numeric_limits<int64_t>::max() / aI64))
                                 stack.push_back(vchFalse);
                             else {
                                 popstack(stack);
                                 popstack(stack);
-                                push8_le(stack, a * b);
+                                stack.push_back((a * b).getvch());
                                 stack.push_back(vchTrue);
                             }
                         break;
                         case OP_DIV64:
                         {
-                            if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
-                            int64_t r = a % b;
-                            int64_t q = a / b;
-                            if (r < 0 && b > 0)      { r += b; q-=1;} // ensures that 0<=r<|b|
-                            else if (r < 0 && b < 0) { r -= b; q+=1;} // ensures that 0<=r<|b|
+                            if (bI64 == 0 || (bI64 == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
+                            int64_t r = aI64 % bI64;
+                            int64_t q = aI64 / bI64;
+                            if (r < 0 && b > 0)      { r += bI64; q-=1;} // ensures that 0<=r<|b|
+                            else if (r < 0 && b < 0) { r -= bI64; q+=1;} // ensures that 0<=r<|b|
                             popstack(stack);
                             popstack(stack);
-                            push8_le(stack, r);
-                            push8_le(stack, q);
+                            stack.push_back(CScriptNum(r).getvch());
+                            stack.push_back(CScriptNum(q).getvch());
                             stack.push_back(vchTrue);
                         }
                         break;
@@ -1325,14 +1328,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
                     valtype& vcha = stacktop(-1);
-                    if (vcha.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
-
-                    int64_t a = read_le8_signed(vcha.data());
-                    if (a == std::numeric_limits<int64_t>::min()) { stack.push_back(vchFalse); break; }
+                    CScriptNum a = CScriptNum(vcha,/*fRequireMinimal=*/true,/*nMaxNumSize=*/8);
+                    int64_t aI64 = a.GetInt64(); 
+                    if (aI64 == std::numeric_limits<int64_t>::min()) { stack.push_back(vchFalse); break; }
 
                     popstack(stack);
-                    push8_le(stack, -a);
+                    stack.push_back(a.getvch());
                     stack.push_back(vchTrue);
                 }
                 break;
