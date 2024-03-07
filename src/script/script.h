@@ -13,17 +13,6 @@
 #include <uint256.h>
 #include <util/hash_type.h>
 
-#include <cassert>
-#include <cstdint>
-#include <cstring>
-#include <limits>
-#include <span>
-#include <stdexcept>
-#include <string>
-#include <type_traits>
-#include <utility>
-#include <vector>
-
 enum class SigVersion;
 
 // Maximum number of bytes pushable to the stack
@@ -211,22 +200,6 @@ enum opcodetype
     // Opcode added by BIP 342 (Tapscript)
     OP_CHECKSIGADD = 0xba,
 
-    // Arithmetic opcodes
-    OP_ADD64 = 0xd7,
-    OP_SUB64 = 0xd8,
-    OP_MUL64 = 0xd9,
-    OP_DIV64 = 0xda,
-    OP_NEG64 = 0xdb,
-    OP_LESSTHAN64 = 0xdc,
-    OP_LESSTHANOREQUAL64 = 0xdd,
-    OP_GREATERTHAN64 = 0xde,
-    OP_GREATERTHANOREQUAL64 = 0xdf,
-
-    // Conversion opcodes
-    OP_SCRIPTNUMTOLE64 = 0xe0,
-    OP_LE64TOSCRIPTNUM = 0xe1,
-    OP_LE32TOLE64 = 0xe2,
-
     OP_INVALIDOPCODE = 0xff,
 };
 
@@ -253,7 +226,7 @@ class CScriptNum
  */
 public:
 
-    explicit CScriptNum(const int64_t& n)
+    explicit CScriptNum(const __int128_t& n)
     {
         m_value = n;
     }
@@ -314,12 +287,15 @@ public:
 
     inline CScriptNum& operator&=( const CScriptNum& rhs)       { return operator&=(rhs.m_value);  }
 
-    inline CScriptNum operator*(const int64_t& rhs) const { return CScriptNum(m_value * rhs);}
+    inline CScriptNum operator*(const __int128_t& rhs) const { return CScriptNum(m_value * rhs);}
     inline CScriptNum operator*(const CScriptNum& rhs) const { return operator*(rhs.m_value);}
+
+    inline CScriptNum operator/(const __int128_t& rhs) const { return CScriptNum(m_value / rhs);}
+    inline CScriptNum operator/(const CScriptNum& rhs) const { return operator/(rhs.m_value);}
 
     inline CScriptNum operator-()                         const
     {
-        assert(m_value != std::numeric_limits<int64_t>::min());
+        assert(m_value != std::numeric_limits<__int128_t>::min());
         return CScriptNum(-m_value);
     }
 
@@ -331,16 +307,16 @@ public:
 
     inline CScriptNum& operator+=( const int64_t& rhs)
     {
-        assert(rhs == 0 || (rhs > 0 && m_value <= std::numeric_limits<int64_t>::max() - rhs) ||
-                           (rhs < 0 && m_value >= std::numeric_limits<int64_t>::min() - rhs));
+        assert(rhs == 0 || (rhs > 0 && m_value <= std::numeric_limits<__int128_t>::max() - rhs) ||
+                           (rhs < 0 && m_value >= std::numeric_limits<__int128_t>::min() - rhs));
         m_value += rhs;
         return *this;
     }
 
     inline CScriptNum& operator-=( const int64_t& rhs)
     {
-        assert(rhs == 0 || (rhs > 0 && m_value >= std::numeric_limits<int64_t>::min() + rhs) ||
-                           (rhs < 0 && m_value <= std::numeric_limits<int64_t>::max() + rhs));
+        assert(rhs == 0 || (rhs > 0 && m_value >= std::numeric_limits<__int128_t>::min() + rhs) ||
+                           (rhs < 0 && m_value <= std::numeric_limits<__int128_t>::max() + rhs));
         m_value -= rhs;
         return *this;
     }
@@ -361,20 +337,21 @@ public:
     }
 
     int64_t GetInt64() const { return m_value; }
-
+    __int128_t GetInt128() const {return m_value; }
     std::vector<unsigned char> getvch() const
     {
         return serialize(m_value);
     }
 
-    static std::vector<unsigned char> serialize(const int64_t& value)
+    static std::vector<unsigned char> serialize(const __int128_t& value)
     {
-        if(value == 0)
+        if(value == 0) {
             return std::vector<unsigned char>();
+        }
 
         std::vector<unsigned char> result;
         const bool neg = value < 0;
-        uint64_t absvalue = neg ? ~static_cast<uint64_t>(value) + 1 : static_cast<uint64_t>(value);
+        __uint128_t absvalue = neg ? ~static_cast<__uint128_t>(value) + 1 : static_cast<__uint128_t>(value);
 
         while(absvalue)
         {
@@ -392,33 +369,35 @@ public:
 //    0x80 to it, since it will be subtracted and interpreted as a negative when
 //    converting to an integral.
 
-        if (result.back() & 0x80)
+        if (result.back() & 0x80) {
             result.push_back(neg ? 0x80 : 0);
-        else if (neg)
+        }
+        else if (neg) {
             result.back() |= 0x80;
+        }
 
         return result;
     }
 
 private:
-    static int64_t set_vch(const std::vector<unsigned char>& vch)
+    static __int128_t set_vch(const std::vector<unsigned char>& vch)
     {
       if (vch.empty())
           return 0;
 
-      int64_t result = 0;
+      __int128_t result = 0;
       for (size_t i = 0; i != vch.size(); ++i)
-          result |= static_cast<int64_t>(vch[i]) << 8*i;
+          result |= static_cast<__int128_t>(vch[i]) << 8*i;
 
       // If the input vector's most significant byte is 0x80, remove it from
       // the result's msb and return a negative.
       if (vch.back() & 0x80)
-          return -((int64_t)(result & ~(0x80ULL << (8 * (vch.size() - 1)))));
+          return -((__int128_t)(result & ~(0x80ULL << (8 * (vch.size() - 1)))));
 
       return result;
     }
 
-    int64_t m_value;
+    __int128_t m_value;
 };
 
 /**
@@ -628,7 +607,7 @@ public:
 };
 
 /** Test for OP_SUCCESSx opcodes as defined by BIP342. */
-bool IsOpSuccess(const opcodetype& opcode, SigVersion sigVersion);
+bool IsOpSuccess(const opcodetype& opcode);
 
 bool CheckMinimalPush(const std::vector<unsigned char>& data, opcodetype opcode);
 

@@ -565,7 +565,7 @@ static RPCHelpMan decodescript()
         for (CScript::const_iterator it{script.begin()}; it != script.end();) {
             opcodetype op;
             CHECK_NONFATAL(script.GetOp(it, op));
-            if (op == OP_CHECKSIGADD || IsOpSuccess(op, SigVersion::TAPSCRIPT)) {
+            if (op == OP_CHECKSIGADD || IsOpSuccess(op)) {
                 return false;
             }
         }
