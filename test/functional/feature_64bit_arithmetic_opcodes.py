@@ -286,7 +286,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         x = 100000000000
         y = 200000000000
-        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD64, OP_DROP, OP_LE64TOSCRIPTNUM, OP_SIZE, OP_8, OP_EQUALVERIFY, OP_SCRIPTNUMTOLE64 , le8(y), OP_EQUALVERIFY]), fail="Arithmetic opcode error")
+        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD64, OP_DROP, OP_LE64TOSCRIPTNUM, OP_SIZE, OP_8, OP_EQUALVERIFY, OP_SCRIPTNUMTOLE64 , le8(y), OP_EQUAL]), fail="Arithmetic opcode error")
 
 if __name__ == '__main__':
     Arithmetic64bitTest().main()
