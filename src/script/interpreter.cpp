@@ -12,6 +12,8 @@
 #include <script/script.h>
 #include <script/sigversion.h>
 #include <uint256.h>
+#include <iostream>
+#include <iomanip>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -424,15 +426,85 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
     assert(false);
 }
 
+std::string vectorToHexString(const std::vector<unsigned char>& vec) {
+    std::stringstream ss;
+    for (const auto& elem : vec) {
+        ss << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(elem);
+    }
+    return ss.str();
+}
+
+bool is64Bit(SigVersion sigversion) {
+    return sigversion == SigVersion::TAPSCRIPT_64BIT;
+}
+
+std::string GetSigVersionString(SigVersion sigVersion) {
+    if (sigVersion == SigVersion::BASE) {
+        return "BASE";
+    } else if (sigVersion == SigVersion::WITNESS_V0) {
+        return "WITNESS_V0";
+    } else if (sigVersion == SigVersion::TAPROOT) {
+        return "TAPROOT";
+    } else if (sigVersion == SigVersion::TAPSCRIPT) {
+        return "TAPSCRIPT";
+    } else if (sigVersion == SigVersion::TAPSCRIPT_64BIT) {
+        return "TAPSCRIPT_64BIT";
+    } else {
+        return "sigversion_unknown";
+    }
+}
+
+valtype GetFalse(SigVersion sigversion ) {
+    std::cout << "Evalulating GetFalse() " << std::endl;
+    switch(sigversion) {
+        case SigVersion::BASE : {
+            std::cout << "GetFalse matched BASE!!!" << std::endl;
+            return valtype(0);
+        }
+        case SigVersion::WITNESS_V0 : {
+            std::cout << "GetFalse matched WITNESS_V0!!!" << std::endl;
+            return valtype(0);
+        }
+        case SigVersion::TAPROOT : {
+            std::cout << "GetFalse matched TAPROOT!!!" << std::endl;
+            return valtype(0);
+        }
+        case SigVersion::TAPSCRIPT : {
+            std::cout << "GetFalse matched TAPSCRIPT!!!" << std::endl;
+            return valtype(0);
+        }
+        case SigVersion::TAPSCRIPT_64BIT : {
+            std::cout << "GetFalse matched TAPSCRIPT64_BIT!!!" << std::endl;
+            return valtype { 0,0,0,0,0,0,0,0 };
+        }
+    }
+}
+
+valtype GetTrue(SigVersion sigversion ) {
+    switch(sigversion) {
+        case SigVersion::BASE : return valtype(1,1);
+        case SigVersion::WITNESS_V0 : return valtype(1,1);
+        case SigVersion::TAPROOT : return valtype(1,1);
+        case SigVersion::TAPSCRIPT : return valtype(1,1);
+        case SigVersion::TAPSCRIPT_64BIT : {
+            std::cout << "GetTrue matched TAPSCRIPT64_BIT!!!" << std::endl;
+            return valtype { 1,0,0,0,0,0,0,0 };
+        }
+
+    }
+}
+
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
 {
     static const CScriptNum bnZero(0);
     static const CScriptNum bnOne(1);
     // static const CScriptNum bnFalse(0);
     // static const CScriptNum bnTrue(1);
-    static const valtype vchFalse(0);
+    static const valtype vchFalse = GetFalse(sigversion);
     // static const valtype vchZero(0);
-    static const valtype vchTrue(1, 1);
+    static const valtype vchTrue = GetTrue(sigversion);
+    
+    std::cout << "sigVersion " << GetSigVersionString(sigversion) <<  " is64Bit " << is64Bit(sigversion) <<  " vchTrue " << vectorToHexString(vchTrue) << " vchFalse " << vectorToHexString(vchFalse) << std::endl;
 
     // sigversion cannot be TAPROOT here, as it admits no script execution.
     assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPSCRIPT || sigversion == SigVersion::TAPSCRIPT_64BIT);
@@ -524,11 +596,28 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_15:
                 case OP_16:
                 {
+
                     // ( -- value)
-                    CScriptNum bn((int)opcode - (int)(OP_1 - 1));
-                    stack.push_back(bn.getvch());
                     // The result of these opcodes should always be the minimal way to push the data
                     // they push, so no need for a CheckMinimalPush here.
+                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) {
+                        //this is for backwards compatability, we always want to use the old numbering
+                        //system for already deployed versions of the bitcoin protocol
+                        CScriptNum bn((int)opcode - (int)(OP_1 - 1));
+                        stack.push_back(bn.getvch());
+                    } else if (sigversion == SigVersion::TAPSCRIPT_64BIT) {
+                        // All future soft forks assume 64-bit math.
+                        // Don't push variable length encodings onto
+                        // the stack when we are using SigVersion::TAPSCRIPT_64BIT.
+                        const int result = (int)opcode - (int)(OP_1 - 1);
+                        std::cout << "pushing " << result << " opcode " << GetOpName(opcode) << std::endl;
+                        push8_le(stack, result);
+                        std::cout << "ScriptOp.stacktop(-1) " << vectorToHexString(stacktop(-1)) << std::endl;
+                    } else if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
+                        return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
+                    } else {
+                        return set_success(serror);
+                    }
                 }
                 break;
 
@@ -889,14 +978,29 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 break;
 
-
                 case OP_SIZE:
                 {
                     // (in -- in size)
                     if (stack.size() < 1)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn(stacktop(-1).size());
-                    stack.push_back(bn.getvch());
+
+                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) {
+                    //this is for backwards compatability, we always want to use the old numbering
+                    //system for already deployed versions of the bitcoin protocol
+                        CScriptNum bn(stacktop(-1).size());
+                        stack.push_back(bn.getvch());
+                    } else if (sigversion == SigVersion::TAPSCRIPT_64BIT) {
+                        // All future soft forks assume 64-bit math.
+                        // Don't push variable length encodings onto
+                        // the stack when we are using SigVersion::TAPSCRIPT_64BIT.
+                        int64_t result = stacktop(-1).size();
+                        push8_le(stack, result);
+                    } else if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
+                        return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
+                    } else {
+                        return set_success(serror);
+                    }
+
                 }
                 break;
 
@@ -919,8 +1023,11 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
                     //if (opcode == OP_NOTEQUAL)
                     //    fEqual = !fEqual;
+                    std::cout << "stacktop(-2) " << vectorToHexString(vch1) << " stackTop(-1) " << vectorToHexString(vch2) << std::endl;
                     popstack(stack);
                     popstack(stack);
+                    std::cout << "vchTrue " << vectorToHexString(vchTrue) << " vchFalse " << vectorToHexString(vchFalse) << "is64Bit() " << is64Bit(sigversion) << std::endl;
+
                     stack.push_back(fEqual ? vchTrue : vchFalse);
                     if (opcode == OP_EQUALVERIFY)
                     {
@@ -1255,7 +1362,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     int64_t b = read_le8_signed(vchb.data());
                     int64_t a = read_le8_signed(vcha.data());
-
+                    
                     switch(opcode)
                     {
                         case OP_ADD64:
