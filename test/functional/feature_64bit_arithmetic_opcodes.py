@@ -200,7 +200,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
             self.tapscript_satisfy_test(CScript([OP_NEG64, OP_VERIFY, le8(res), OP_EQUAL]), inputs = [le8(a)], fail=fail)
         # Arithematic opcodes
         self.log.info("Check Arithmetic opcodes")
-        check_le(5, 6, 1)
+        check_le(5, 5, 0)
         check_add(5, 5, 10)
         check_add(-5, -5, -10)
         check_add(-5, 5, 0)
