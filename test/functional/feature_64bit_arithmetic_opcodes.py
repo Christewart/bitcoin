@@ -200,6 +200,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
             self.tapscript_satisfy_test(CScript([OP_NEG64, OP_VERIFY, le8(res), OP_EQUAL]), inputs = [le8(a)], fail=fail)
         # Arithematic opcodes
         self.log.info("Check Arithmetic opcodes")
+        check_le(5, 6, 1)
         check_add(5, 5, 10)
         check_add(-5, -5, -10)
         check_add(-5, 5, 0)
@@ -284,5 +285,8 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         # Overflow inputs
         self.tapscript_satisfy_test(CScript([le8(2**31), OP_LE64TOSCRIPTNUM, 2**31, OP_EQUAL]), fail = "Arithmetic opcode error")
 
+        x = 100000000000
+        y = 200000000000
+        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD64, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]), fail="Arithmetic opcode error")
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
