@@ -14,6 +14,8 @@
 #include <uint256.h>
 #include <iostream>
 #include <iomanip>
+#include <string>
+#include <sstream>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -500,9 +502,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
     static const CScriptNum bnOne(1);
     // static const CScriptNum bnFalse(0);
     // static const CScriptNum bnTrue(1);
-    static const valtype vchFalse = GetFalse(sigversion);
+    const valtype vchFalse = GetFalse(sigversion);
     // static const valtype vchZero(0);
-    static const valtype vchTrue = GetTrue(sigversion);
+    const valtype vchTrue = GetTrue(sigversion);
     
     std::cout << "sigVersion " << GetSigVersionString(sigversion) <<  " is64Bit " << is64Bit(sigversion) <<  " vchTrue " << vectorToHexString(vchTrue) << " vchFalse " << vectorToHexString(vchFalse) << std::endl;
 
@@ -571,7 +573,14 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 if (fRequireMinimal && !CheckMinimalPush(vchPushValue, opcode)) {
                     return set_error(serror, SCRIPT_ERR_MINIMALDATA);
                 }
-                stack.push_back(vchPushValue);
+                if (opcode == OP_0 && is64Bit(sigversion)) {
+                    //instead of empty Vector we now encode false as
+                    //0x00000000
+                    stack.push_back(vchFalse);
+                } else {
+                    stack.push_back(vchPushValue);
+                }
+                
             } else if (fExec || (OP_IF <= opcode && opcode <= OP_ENDIF))
             switch (opcode)
             {
@@ -1026,8 +1035,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     std::cout << "stacktop(-2) " << vectorToHexString(vch1) << " stackTop(-1) " << vectorToHexString(vch2) << std::endl;
                     popstack(stack);
                     popstack(stack);
-                    std::cout << "vchTrue " << vectorToHexString(vchTrue) << " vchFalse " << vectorToHexString(vchFalse) << "is64Bit() " << is64Bit(sigversion) << std::endl;
-
+                    
                     stack.push_back(fEqual ? vchTrue : vchFalse);
                     if (opcode == OP_EQUALVERIFY)
                     {
