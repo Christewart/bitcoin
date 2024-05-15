@@ -457,26 +457,20 @@ std::string GetSigVersionString(SigVersion sigVersion) {
 }
 
 valtype GetFalse(SigVersion sigversion ) {
-    std::cout << "Evalulating GetFalse() " << std::endl;
     switch(sigversion) {
         case SigVersion::BASE : {
-            std::cout << "GetFalse matched BASE!!!" << std::endl;
             return valtype(0);
         }
         case SigVersion::WITNESS_V0 : {
-            std::cout << "GetFalse matched WITNESS_V0!!!" << std::endl;
             return valtype(0);
         }
         case SigVersion::TAPROOT : {
-            std::cout << "GetFalse matched TAPROOT!!!" << std::endl;
             return valtype(0);
         }
         case SigVersion::TAPSCRIPT : {
-            std::cout << "GetFalse matched TAPSCRIPT!!!" << std::endl;
             return valtype(0);
         }
         case SigVersion::TAPSCRIPT_64BIT : {
-            std::cout << "GetFalse matched TAPSCRIPT64_BIT!!!" << std::endl;
             return valtype { 0,0,0,0,0,0,0,0 };
         }
     }
@@ -489,7 +483,6 @@ valtype GetTrue(SigVersion sigversion ) {
         case SigVersion::TAPROOT : return valtype(1,1);
         case SigVersion::TAPSCRIPT : return valtype(1,1);
         case SigVersion::TAPSCRIPT_64BIT : {
-            std::cout << "GetTrue matched TAPSCRIPT64_BIT!!!" << std::endl;
             return valtype { 1,0,0,0,0,0,0,0 };
         }
 
@@ -506,8 +499,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
     // static const valtype vchZero(0);
     const valtype vchTrue = GetTrue(sigversion);
     
-    std::cout << "sigVersion " << GetSigVersionString(sigversion) <<  " is64Bit " << is64Bit(sigversion) <<  " vchTrue " << vectorToHexString(vchTrue) << " vchFalse " << vectorToHexString(vchFalse) << std::endl;
-
     // sigversion cannot be TAPROOT here, as it admits no script execution.
     assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPSCRIPT || sigversion == SigVersion::TAPSCRIPT_64BIT);
 
@@ -619,9 +610,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         // Don't push variable length encodings onto
                         // the stack when we are using SigVersion::TAPSCRIPT_64BIT.
                         const int result = (int)opcode - (int)(OP_1 - 1);
-                        std::cout << "pushing " << result << " opcode " << GetOpName(opcode) << std::endl;
                         push8_le(stack, result);
-                        std::cout << "ScriptOp.stacktop(-1) " << vectorToHexString(stacktop(-1)) << std::endl;
                     } else if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
                         return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
                     } else {
@@ -1032,7 +1021,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
                     //if (opcode == OP_NOTEQUAL)
                     //    fEqual = !fEqual;
-                    std::cout << "stacktop(-2) " << vectorToHexString(vch1) << " stackTop(-1) " << vectorToHexString(vch2) << std::endl;
                     popstack(stack);
                     popstack(stack);
                     
