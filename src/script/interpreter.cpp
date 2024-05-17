@@ -1440,56 +1440,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 break;
 
-                case OP_SCRIPTNUMTOLE64:
-                {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    int64_t num = CScriptNum(stacktop(-1), fRequireMinimal).getint();
-                    popstack(stack);
-                    push8_le(stack, num);
-                }
-                break;
-                case OP_LE64TOSCRIPTNUM:
-                {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    valtype& vchnum = stacktop(-1);
-                    if (vchnum.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
-                    valtype vchscript_num = CScriptNum(read_le8_signed(vchnum.data())).getvch();
-                    if (vchscript_num.size() > CScriptNum::nDefaultMaxNumSize) {
-                        return set_error(serror, SCRIPT_ERR_ARITHMETIC64);
-                    } else {
-                        popstack(stack);
-                        stack.push_back(std::move(vchscript_num));
-                    }
-                }
-                break;
-                case OP_LE32TOLE64:
-                {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    valtype& vchnum = stacktop(-1);
-                    if (vchnum.size() != 4)
-                        return set_error(serror, SCRIPT_ERR_ARITHMETIC64);
-                    uint32_t num = ReadLE32(vchnum.data());
-                    popstack(stack);
-                    push8_le(stack, static_cast<int64_t>(num));
-                }
-                break;
-
                 default:
                     return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
