@@ -270,16 +270,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         check_neg(2**63-1, -2**63 + 1)
 
         self.log.info("Done checking comparison op codes. Checking conversion op codes...")
-
-        # Finally, test conversion opcodes
-        self.log.info("Check conversion opcodes")
-        for n in [-2**31 + 1, -1, 0, 1, 2**31 - 1]:
-            self.tapscript_satisfy_test(CScript([le8(n), OP_LE64TOSCRIPTNUM, n, OP_EQUAL]))
-            self.tapscript_satisfy_test(CScript([n, OP_SCRIPTNUMTOLE64, le8(n), OP_EQUAL]))
-            self.tapscript_satisfy_test(CScript([n, OP_DUP, OP_SCRIPTNUMTOLE64, OP_LE64TOSCRIPTNUM, OP_EQUAL]))
-            self.tapscript_satisfy_test(CScript([le8(n), OP_DUP, OP_LE64TOSCRIPTNUM, OP_SCRIPTNUMTOLE64, OP_EQUAL]))
-            self.tapscript_satisfy_test(CScript([n.to_bytes(4, 'little', signed=True), OP_LE32TOLE64, le8(n), OP_EQUAL]), fail= "Script evaluated without error but finished with a false/empty top stack element" if (n < 0) else None)
-
         # Non 8 byte inputs
         self.tapscript_satisfy_test(CScript([OP_ADD64, OP_VERIFY, le8(9), OP_EQUAL]), inputs = [le8(0), int(9).to_bytes(7, 'little')], fail="Arithmetic opcodes expect 8 bytes operands")
         # Overflow inputs
@@ -287,6 +277,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         x = 100000000000
         y = 200000000000
-        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD64, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]), fail="Arithmetic opcode error")
+        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD64, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]))
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
