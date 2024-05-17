@@ -1079,6 +1079,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_MIN:
                 case OP_MAX:
                 {
+
+                    switch(sigversion) {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT: {
                     // (x1 x2 -- out)
                     if (stack.size() < 2)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
@@ -1119,6 +1125,85 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         else
                             return set_error(serror, SCRIPT_ERR_NUMEQUALVERIFY);
                     }
+                    break;
+                    }
+                    case SigVersion::TAPSCRIPT_64BIT: {
+                    // Opcodes only available post tapscript_64bit
+                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+
+                    if (stack.size() < 2)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    valtype& vcha = stacktop(-2);
+                    valtype& vchb = stacktop(-1);
+                    if (vchb.size() != 8 || vcha.size() != 8)
+                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
+
+                    int64_t b = read_le8_signed(vchb.data());
+                    int64_t a = read_le8_signed(vcha.data());
+                    
+                    switch(opcode)
+                    {
+                        case OP_ADD64:
+                            if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
+                                (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
+                                stack.push_back(vchFalse);
+                            else {
+                                popstack(stack);
+                                popstack(stack);
+                                push8_le(stack, a + b);
+                                stack.push_back(vchTrue);
+                            }
+                        break;
+                        case OP_SUB64:
+                            if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
+                                (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
+                                stack.push_back(vchFalse);
+                            else {
+                                popstack(stack);
+                                popstack(stack);
+                                push8_le(stack, a - b);
+                                stack.push_back(vchTrue);
+                            }
+                        break;
+                        case OP_MUL64:
+                            if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
+                                (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
+                                (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
+                                (a < 0 && b < 0 && b < std::numeric_limits<int64_t>::max() / a))
+                                stack.push_back(vchFalse);
+                            else {
+                                popstack(stack);
+                                popstack(stack);
+                                push8_le(stack, a * b);
+                                stack.push_back(vchTrue);
+                            }
+                        break;
+                        case OP_DIV64:
+                        {
+                            if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
+                            int64_t r = a % b;
+                            int64_t q = a / b;
+                            if (r < 0 && b > 0)      { r += b; q-=1;} // ensures that 0<=r<|b|
+                            else if (r < 0 && b < 0) { r -= b; q+=1;} // ensures that 0<=r<|b|
+                            popstack(stack);
+                            popstack(stack);
+                            push8_le(stack, r);
+                            push8_le(stack, q);
+                            stack.push_back(vchTrue);
+                        }
+                        break;
+                        break;
+                        case OP_LESSTHAN64:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
+                        case OP_LESSTHANOREQUAL64:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
+                        case OP_GREATERTHAN64:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
+                        case OP_GREATERTHANOREQUAL64:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
+                        default:                       assert(!"invalid opcode"); break;
+                    }
+                        break;
+                    }
+                }
+ 
                 }
                 break;
 
@@ -1336,89 +1421,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     }
                 }
                 break;
-                case OP_ADD64:
-                case OP_SUB64:
-                case OP_MUL64:
-                case OP_DIV64:
-                case OP_LESSTHAN64:
-                case OP_LESSTHANOREQUAL64:
-                case OP_GREATERTHAN64:
-                case OP_GREATERTHANOREQUAL64:
-                {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
 
-                    if (stack.size() < 2)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    valtype& vcha = stacktop(-2);
-                    valtype& vchb = stacktop(-1);
-                    if (vchb.size() != 8 || vcha.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
-
-                    int64_t b = read_le8_signed(vchb.data());
-                    int64_t a = read_le8_signed(vcha.data());
-                    
-                    switch(opcode)
-                    {
-                        case OP_ADD64:
-                            if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
-                                (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a + b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_SUB64:
-                            if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
-                                (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a - b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_MUL64:
-                            if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
-                                (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
-                                (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
-                                (a < 0 && b < 0 && b < std::numeric_limits<int64_t>::max() / a))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a * b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_DIV64:
-                        {
-                            if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
-                            int64_t r = a % b;
-                            int64_t q = a / b;
-                            if (r < 0 && b > 0)      { r += b; q-=1;} // ensures that 0<=r<|b|
-                            else if (r < 0 && b < 0) { r -= b; q+=1;} // ensures that 0<=r<|b|
-                            popstack(stack);
-                            popstack(stack);
-                            push8_le(stack, r);
-                            push8_le(stack, q);
-                            stack.push_back(vchTrue);
-                        }
-                        break;
-                        break;
-                        case OP_LESSTHAN64:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
-                        case OP_LESSTHANOREQUAL64:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHAN64:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHANOREQUAL64:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
-                        default:                       assert(!"invalid opcode"); break;
-                    }
-                }
-                break;
                 case OP_NEG64:
                 {
                     // Opcodes only available post tapscript_64bit
