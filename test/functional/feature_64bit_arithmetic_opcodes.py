@@ -9,7 +9,7 @@ from test_framework.util import assert_raises_rpc_error
 from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import CScript, CScriptNum, CScriptOp, OP_1, OP_ADD64, OP_SUB64, OP_MUL64, OP_DIV64, OP_LESSTHAN64, OP_LESSTHANOREQUAL64, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_NEG64, OP_SCRIPTNUMTOLE64, OP_LE64TOSCRIPTNUM, OP_LE32TOLE64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
+from test_framework.script import OP_8, OP_DROP, OP_SIZE, CScript, CScriptNum, CScriptOp, OP_1, OP_ADD64, OP_SUB64, OP_MUL64, OP_DIV64, OP_LESSTHAN64, OP_LESSTHANOREQUAL64, OP_GREATERTHAN64, OP_GREATERTHANOREQUAL64, OP_NEG64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
 from test_framework.address import output_key_to_p2tr
 
 VALID_SIGHASHES_ECDSA = [
@@ -272,8 +272,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         self.log.info("Done checking comparison op codes. Checking conversion op codes...")
         # Non 8 byte inputs
         self.tapscript_satisfy_test(CScript([OP_ADD64, OP_VERIFY, le8(9), OP_EQUAL]), inputs = [le8(0), int(9).to_bytes(7, 'little')], fail="Arithmetic opcodes expect 8 bytes operands")
-        # Overflow inputs
-        self.tapscript_satisfy_test(CScript([le8(2**31), OP_LE64TOSCRIPTNUM, 2**31, OP_EQUAL]), fail = "Arithmetic opcode error")
 
         x = 100000000000
         y = 200000000000

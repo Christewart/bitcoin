@@ -222,11 +222,6 @@ enum opcodetype
     OP_GREATERTHAN64 = 0xde,
     OP_GREATERTHANOREQUAL64 = 0xdf,
 
-    // Conversion opcodes
-    OP_SCRIPTNUMTOLE64 = 0xe0,
-    OP_LE64TOSCRIPTNUM = 0xe1,
-    OP_LE32TOLE64 = 0xe2,
-
     OP_INVALIDOPCODE = 0xff,
 };
 
