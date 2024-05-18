@@ -539,7 +539,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
             }
 
-            if (opcode == OP_CAT ||
+            if ((opcode == OP_CAT ||
                 opcode == OP_SUBSTR ||
                 opcode == OP_LEFT ||
                 opcode == OP_RIGHT ||
@@ -553,7 +553,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 opcode == OP_DIV ||
                 opcode == OP_MOD ||
                 opcode == OP_LSHIFT ||
-                opcode == OP_RSHIFT)
+                opcode == OP_RSHIFT) && !(is64Bit(sigversion) && (opcode == OP_MUL || opcode == OP_DIV)))
                 return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
 
             // With SCRIPT_VERIFY_CONST_SCRIPTCODE, OP_CODESEPARATOR in non-segwit script is rejected even in an unexecuted branch
@@ -1078,6 +1078,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_GREATERTHANOREQUAL:
                 case OP_MIN:
                 case OP_MAX:
+                case OP_MUL:
+                case OP_DIV:
                 {
 
                     switch(sigversion) {
@@ -1144,7 +1146,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     
                     switch(opcode)
                     {
-                        case OP_ADD64:
+                        case OP_ADD:
                             if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
                                 (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
                                 stack.push_back(vchFalse);
@@ -1155,7 +1157,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                                 stack.push_back(vchTrue);
                             }
                         break;
-                        case OP_SUB64:
+                        case OP_SUB:
                             if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
                                 (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
                                 stack.push_back(vchFalse);
@@ -1166,7 +1168,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                                 stack.push_back(vchTrue);
                             }
                         break;
-                        case OP_MUL64:
+                        case OP_MUL:
                             if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
                                 (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
                                 (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
@@ -1179,7 +1181,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                                 stack.push_back(vchTrue);
                             }
                         break;
-                        case OP_DIV64:
+                        case OP_DIV:
                         {
                             if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
                             int64_t r = a % b;
@@ -1194,10 +1196,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
                         break;
                         break;
-                        case OP_LESSTHAN64:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
-                        case OP_LESSTHANOREQUAL64:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHAN64:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHANOREQUAL64:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
+                        case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
+                        case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
+                        case OP_GREATERTHAN:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
+                        case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
                         default:                       assert(!"invalid opcode"); break;
                     }
                         break;
