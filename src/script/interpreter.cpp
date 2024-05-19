@@ -1130,9 +1130,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     break;
                     }
                     case SigVersion::TAPSCRIPT_64BIT: {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-
                     if (stack.size() < 2)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
@@ -1194,7 +1191,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             push8_le(stack, q);
                             stack.push_back(vchTrue);
                         }
-                        break;
                         break;
                         case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
                         case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
