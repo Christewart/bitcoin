@@ -489,6 +489,80 @@ valtype GetTrue(SigVersion sigversion ) {
     }
 }
 
+bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, opcodetype& opcode, ScriptError* serror)
+{
+    if (stack.size() < 2)
+        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+    static valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
+    static valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
+    valtype& vcha = stacktop(-2);
+    valtype& vchb = stacktop(-1);
+    if (vchb.size() != 8 || vcha.size() != 8)
+        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
+
+    int64_t b = read_le8_signed(vchb.data());
+    int64_t a = read_le8_signed(vcha.data());
+    
+    switch(opcode)
+    {
+        case OP_ADD:
+            if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
+                (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
+                stack.push_back(vchFalse);
+            else {
+                popstack(stack);
+                popstack(stack);
+                push8_le(stack, a + b);
+                stack.push_back(vchTrue);
+            }
+        break;
+        case OP_SUB:
+            if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
+                (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
+                stack.push_back(vchFalse);
+            else {
+                popstack(stack);
+                popstack(stack);
+                push8_le(stack, a - b);
+                stack.push_back(vchTrue);
+            }
+        break;
+        case OP_MUL:
+            if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
+                (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
+                (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
+                (a < 0 && b < 0 && b < std::numeric_limits<int64_t>::max() / a))
+                stack.push_back(vchFalse);
+            else {
+                popstack(stack);
+                popstack(stack);
+                push8_le(stack, a * b);
+                stack.push_back(vchTrue);
+            }
+        break;
+        case OP_DIV:
+        {
+            if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
+            int64_t r = a % b;
+            int64_t q = a / b;
+            if (r < 0 && b > 0)      { r += b; q-=1;} // ensures that 0<=r<|b|
+            else if (r < 0 && b < 0) { r -= b; q+=1;} // ensures that 0<=r<|b|
+            popstack(stack);
+            popstack(stack);
+            push8_le(stack, r);
+            push8_le(stack, q);
+            stack.push_back(vchTrue);
+        }
+        break;
+        case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
+        case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
+        case OP_GREATERTHAN:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
+        case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
+        default:                       assert(!"invalid opcode"); break;
+    }
+    return true;
+}
+
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
 {
     static const CScriptNum bnZero(0);
@@ -1082,129 +1156,62 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_DIV:
                 {
 
-                    switch(sigversion) {
+                    switch(sigversion) 
+                    {
                         case SigVersion::BASE:
                         case SigVersion::WITNESS_V0:
                         case SigVersion::TAPROOT:
-                        case SigVersion::TAPSCRIPT: {
-                    // (x1 x2 -- out)
-                    if (stack.size() < 2)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn1(stacktop(-2), fRequireMinimal);
-                    CScriptNum bn2(stacktop(-1), fRequireMinimal);
-                    CScriptNum bn(0);
-                    switch (opcode)
-                    {
-                    case OP_ADD:
-                        bn = bn1 + bn2;
-                        break;
+                        case SigVersion::TAPSCRIPT: 
+                        {
+                            // (x1 x2 -- out)
+                            if (stack.size() < 2)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            CScriptNum bn1(stacktop(-2), fRequireMinimal);
+                            CScriptNum bn2(stacktop(-1), fRequireMinimal);
+                            CScriptNum bn(0);
+                            switch (opcode)
+                            {
+                                case OP_ADD:
+                                    bn = bn1 + bn2;
+                                    break;
 
-                    case OP_SUB:
-                        bn = bn1 - bn2;
-                        break;
+                                case OP_SUB:
+                                    bn = bn1 - bn2;
+                                    break;
 
-                    case OP_BOOLAND:             bn = (bn1 != bnZero && bn2 != bnZero); break;
-                    case OP_BOOLOR:              bn = (bn1 != bnZero || bn2 != bnZero); break;
-                    case OP_NUMEQUAL:            bn = (bn1 == bn2); break;
-                    case OP_NUMEQUALVERIFY:      bn = (bn1 == bn2); break;
-                    case OP_NUMNOTEQUAL:         bn = (bn1 != bn2); break;
-                    case OP_LESSTHAN:            bn = (bn1 < bn2); break;
-                    case OP_GREATERTHAN:         bn = (bn1 > bn2); break;
-                    case OP_LESSTHANOREQUAL:     bn = (bn1 <= bn2); break;
-                    case OP_GREATERTHANOREQUAL:  bn = (bn1 >= bn2); break;
-                    case OP_MIN:                 bn = (bn1 < bn2 ? bn1 : bn2); break;
-                    case OP_MAX:                 bn = (bn1 > bn2 ? bn1 : bn2); break;
-                    default:                     assert(!"invalid opcode"); break;
-                    }
-                    popstack(stack);
-                    popstack(stack);
-                    stack.push_back(bn.getvch());
-
-                    if (opcode == OP_NUMEQUALVERIFY)
-                    {
-                        if (CastToBool(stacktop(-1)))
+                                case OP_BOOLAND:             bn = (bn1 != bnZero && bn2 != bnZero); break;
+                                case OP_BOOLOR:              bn = (bn1 != bnZero || bn2 != bnZero); break;
+                                case OP_NUMEQUAL:            bn = (bn1 == bn2); break;
+                                case OP_NUMEQUALVERIFY:      bn = (bn1 == bn2); break;
+                                case OP_NUMNOTEQUAL:         bn = (bn1 != bn2); break;
+                                case OP_LESSTHAN:            bn = (bn1 < bn2); break;
+                                case OP_GREATERTHAN:         bn = (bn1 > bn2); break;
+                                case OP_LESSTHANOREQUAL:     bn = (bn1 <= bn2); break;
+                                case OP_GREATERTHANOREQUAL:  bn = (bn1 >= bn2); break;
+                                case OP_MIN:                 bn = (bn1 < bn2 ? bn1 : bn2); break;
+                                case OP_MAX:                 bn = (bn1 > bn2 ? bn1 : bn2); break;
+                                default:                     assert(!"invalid opcode"); break;
+                            }
                             popstack(stack);
-                        else
-                            return set_error(serror, SCRIPT_ERR_NUMEQUALVERIFY);
+                            popstack(stack);
+                            stack.push_back(bn.getvch());
+
+                            if (opcode == OP_NUMEQUALVERIFY)
+                            {
+                                if (CastToBool(stacktop(-1)))
+                                    popstack(stack);
+                                else
+                                    return set_error(serror, SCRIPT_ERR_NUMEQUALVERIFY);
+                            }
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT: 
+                            if (!Eval64BitOpCode(stack,opcode,serror)) 
+                                return false;
+                            break;
                     }
                     break;
-                    }
-                    case SigVersion::TAPSCRIPT_64BIT: {
-                    if (stack.size() < 2)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    valtype& vcha = stacktop(-2);
-                    valtype& vchb = stacktop(-1);
-                    if (vchb.size() != 8 || vcha.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
-
-                    int64_t b = read_le8_signed(vchb.data());
-                    int64_t a = read_le8_signed(vcha.data());
-                    
-                    switch(opcode)
-                    {
-                        case OP_ADD:
-                            if ((a > 0 && b > std::numeric_limits<int64_t>::max() - a) ||
-                                (a < 0 && b < std::numeric_limits<int64_t>::min() - a))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a + b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_SUB:
-                            if ((b > 0 && a < std::numeric_limits<int64_t>::min() + b) ||
-                                (b < 0 && a > std::numeric_limits<int64_t>::max() + b))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a - b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_MUL:
-                            if ((a > 0 && b > 0 && a > std::numeric_limits<int64_t>::max() / b) ||
-                                (a > 0 && b < 0 && b < std::numeric_limits<int64_t>::min() / a) ||
-                                (a < 0 && b > 0 && a < std::numeric_limits<int64_t>::min() / b) ||
-                                (a < 0 && b < 0 && b < std::numeric_limits<int64_t>::max() / a))
-                                stack.push_back(vchFalse);
-                            else {
-                                popstack(stack);
-                                popstack(stack);
-                                push8_le(stack, a * b);
-                                stack.push_back(vchTrue);
-                            }
-                        break;
-                        case OP_DIV:
-                        {
-                            if (b == 0 || (b == -1 && a == std::numeric_limits<int64_t>::min())) { stack.push_back(vchFalse); break; }
-                            int64_t r = a % b;
-                            int64_t q = a / b;
-                            if (r < 0 && b > 0)      { r += b; q-=1;} // ensures that 0<=r<|b|
-                            else if (r < 0 && b < 0) { r -= b; q+=1;} // ensures that 0<=r<|b|
-                            popstack(stack);
-                            popstack(stack);
-                            push8_le(stack, r);
-                            push8_le(stack, q);
-                            stack.push_back(vchTrue);
-                        }
-                        break;
-                        case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
-                        case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHAN:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
-                        case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
-                        default:                       assert(!"invalid opcode"); break;
-                    }
-                        break;
-                    }
                 }
- 
-                }
-                break;
-
                 case OP_WITHIN:
                 {
                     // (x min max -- out)
