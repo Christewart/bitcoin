@@ -489,19 +489,19 @@ valtype GetTrue(SigVersion sigversion ) {
     }
 }
 
-bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, opcodetype& opcode, ScriptError* serror)
+bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcodetype& opcode, ScriptError* serror)
 {
     if (stack.size() < 2)
         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
     static const valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
     static const valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
-    valtype vcha = stacktop(-2);
-    valtype vchb = stacktop(-1);
+    const valtype vcha = stacktop(-2);
+    const valtype vchb = stacktop(-1);
     if (vchb.size() != 8 || vcha.size() != 8)
         return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
 
-    int64_t b = read_le8_signed(vchb.data());
-    int64_t a = read_le8_signed(vcha.data());
+    const int64_t b = read_le8_signed(vchb.data());
+    const int64_t a = read_le8_signed(vcha.data());
 
     //std::cout << "a " << a << " b " << b << " opcode " << GetOpName(opcode) << std::endl;
     
