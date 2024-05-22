@@ -9,7 +9,7 @@ from test_framework.util import assert_raises_rpc_error
 from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import OP_8, OP_ADD, OP_DIV, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MUL, OP_SIZE, OP_SUB, CScript, CScriptNum, CScriptOp, OP_1, OP_NEG64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
+from test_framework.script import OP_8, OP_ADD, OP_DIV, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_MUL, OP_SIZE, OP_SUB, CScript, CScriptNum, CScriptOp, OP_1, OP_NEG64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
 from test_framework.address import output_key_to_p2tr
 
 VALID_SIGHASHES_ECDSA = [
@@ -276,5 +276,9 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         x = 100000000000
         y = 200000000000
         self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]))
+
+        # implicit conversion tests
+        self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_MIN, le8(x), OP_EQUAL]))
+        self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_MAX, le8(y), OP_EQUAL]))
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()

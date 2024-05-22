@@ -493,15 +493,17 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, opcodetype&
 {
     if (stack.size() < 2)
         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-    static valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
-    static valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
-    valtype& vcha = stacktop(-2);
-    valtype& vchb = stacktop(-1);
+    static const valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
+    static const valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
+    valtype vcha = stacktop(-2);
+    valtype vchb = stacktop(-1);
     if (vchb.size() != 8 || vcha.size() != 8)
         return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
 
     int64_t b = read_le8_signed(vchb.data());
     int64_t a = read_le8_signed(vcha.data());
+
+    //std::cout << "a " << a << " b " << b << " opcode " << GetOpName(opcode) << std::endl;
     
     switch(opcode)
     {
@@ -558,6 +560,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, opcodetype&
         case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
         case OP_GREATERTHAN:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
         case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
+        case OP_MIN:                 popstack(stack); popstack(stack); stack.push_back( (a < b) ? vcha : vchb); break;
+        case OP_MAX:                 popstack(stack); popstack(stack); stack.push_back( (a > b) ? vcha : vchb); break;
         default:                       assert(!"invalid opcode"); break;
     }
     return true;
