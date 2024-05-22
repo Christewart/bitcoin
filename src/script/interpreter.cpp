@@ -556,6 +556,15 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             stack.push_back(vchTrue);
         }
         break;
+        case OP_NUMEQUAL:            popstack(stack); popstack(stack); stack.push_back( (a == b) ? vchTrue : vchFalse); break;
+        case OP_NUMEQUALVERIFY:
+        {
+            popstack(stack); popstack(stack); stack.push_back( (a == b) ? vchTrue : vchFalse);
+            if (CastToBool(stacktop(-1))) popstack(stack);
+            else return set_error(serror, SCRIPT_ERR_NUMEQUALVERIFY);
+            break;
+        }
+        case OP_NUMNOTEQUAL:         popstack(stack); popstack(stack); stack.push_back( (a != b) ? vchTrue : vchFalse); break;
         case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
         case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
         case OP_GREATERTHAN:         popstack(stack); popstack(stack); stack.push_back( (a >  b) ? vchTrue : vchFalse ); break;
