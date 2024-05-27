@@ -9,7 +9,7 @@ from test_framework.util import assert_raises_rpc_error
 from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import OP_8, OP_ADD, OP_DIV, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_MUL, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_SIZE, OP_SUB, CScript, CScriptNum, CScriptOp, OP_1, OP_NEG64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
+from test_framework.script import OP_0, OP_1ADD, OP_8, OP_ADD, OP_DIV, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_MUL, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_SIZE, OP_SUB, CScript, CScriptNum, CScriptOp, OP_1, OP_NEG64, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
 from test_framework.address import output_key_to_p2tr
 
 VALID_SIGHASHES_ECDSA = [
@@ -262,12 +262,15 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         check_geq(5, 5, 1)
         check_geq(6, 5, 1)
 
+        max = 2**63-1
+        min = -2**63 + 1
+
         # equal
         check_neg(5, -5)
         check_neg(-5, 5)
         check_neg(5, 4, fail="Script evaluated without error but finished with a false/empty top stack element")
         check_neg(-2**63, 0, fail="Script failed an OP_VERIFY operation")
-        check_neg(2**63-1, -2**63 + 1)
+        check_neg(max, min)
 
         self.log.info("Done checking comparison op codes. Checking conversion op codes...")
         # Non 8 byte inputs
@@ -278,11 +281,18 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]))
 
         # implicit conversion tests
+
+        # 2 input opcodes
         self.tapscript_satisfy_test(CScript([le8(y), le8(y), OP_NUMEQUAL]))
         self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_NUMNOTEQUAL,]))
         self.tapscript_satisfy_test(CScript([le8(y), le8(y), OP_NUMEQUALVERIFY, OP_1]))
         self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_NUMEQUALVERIFY]), fail="Script failed an OP_NUMEQUALVERIFY operation")
         self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_MIN, le8(x), OP_EQUAL]))
         self.tapscript_satisfy_test(CScript([le8(x), le8(y), OP_MAX, le8(y), OP_EQUAL]))
+
+        # 1 input opcodes
+        self.tapscript_satisfy_test(CScript([le8(x), OP_1ADD, OP_1, OP_EQUALVERIFY, le8(x + 1), OP_EQUAL]))
+        self.tapscript_satisfy_test(CScript([le8(max), OP_1ADD, OP_0, OP_EQUALVERIFY]))
+        self.tapscript_satisfy_test(CScript([le8(min), OP_1ADD, OP_1, OP_EQUALVERIFY, le8(min + 1), OP_EQUAL]))
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
