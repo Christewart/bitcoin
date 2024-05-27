@@ -491,9 +491,37 @@ valtype GetTrue(SigVersion sigversion ) {
 
 bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcodetype& opcode, ScriptError* serror)
 {
+    static const valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
+    static const valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
     switch(opcode)
     {
-        //2 input opcodes
+        case OP_1ADD:
+        case OP_1SUB:
+        case OP_NEGATE:
+        case OP_ABS:
+        case OP_NOT:
+        case OP_0NOTEQUAL:
+        {
+            //1 input opcodes
+            if (stack.size() < 1)
+                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+            const valtype vcha = stacktop(-1);
+            if (vcha.size() != 8)
+                return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
+            const int64_t a = read_le8_signed(vcha.data());
+            switch(opcode) {
+                case OP_1ADD:
+                    if ((a > 0 && (a + 1) >= std::numeric_limits<int64_t>::max()))
+                        stack.push_back(vchFalse);
+                    else {
+                        popstack(stack);
+                        push8_le(stack, a + 1);
+                        stack.push_back(vchTrue);
+                    }
+                    break;
+            }
+            break;
+        }
         case OP_ADD:
         case OP_SUB:
         case OP_BOOLAND:
@@ -509,10 +537,9 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
         case OP_MAX:
         case OP_MUL:
         case OP_DIV:
+            //2 input opcodes
             if (stack.size() < 2)
                 return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-            static const valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
-            static const valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
             const valtype vcha = stacktop(-2);
             const valtype vchb = stacktop(-1);
             if (vchb.size() != 8 || vcha.size() != 8)
@@ -590,8 +617,9 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 case OP_MAX:                 popstack(stack); popstack(stack); stack.push_back( (a > b) ? vcha : vchb); break;
                 default:                       assert(!"invalid opcode"); break;
             }
-            return true;
+            break;
     }
+    return true;
 }
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
@@ -1151,22 +1179,37 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_NOT:
                 case OP_0NOTEQUAL:
                 {
-                    // (in -- out)
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn(stacktop(-1), fRequireMinimal);
-                    switch (opcode)
+                    switch (sigversion)
                     {
-                    case OP_1ADD:       bn += bnOne; break;
-                    case OP_1SUB:       bn -= bnOne; break;
-                    case OP_NEGATE:     bn = -bn; break;
-                    case OP_ABS:        if (bn < bnZero) bn = -bn; break;
-                    case OP_NOT:        bn = (bn == bnZero); break;
-                    case OP_0NOTEQUAL:  bn = (bn != bnZero); break;
-                    default:            assert(!"invalid opcode"); break;
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // (in -- out)
+                            if (stack.size() < 1)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            CScriptNum bn(stacktop(-1), fRequireMinimal);
+                            switch (opcode)
+                            {
+                                case OP_1ADD:       bn += bnOne; break;
+                                case OP_1SUB:       bn -= bnOne; break;
+                                case OP_NEGATE:     bn = -bn; break;
+                                case OP_ABS:        if (bn < bnZero) bn = -bn; break;
+                                case OP_NOT:        bn = (bn == bnZero); break;
+                                case OP_0NOTEQUAL:  bn = (bn != bnZero); break;
+                                default:            assert(!"invalid opcode"); break;
+                            }
+                            popstack(stack);
+                            stack.push_back(bn.getvch());
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                            if (!Eval64BitOpCode(stack,opcode,serror))
+                                return false;
+                            break;
                     }
-                    popstack(stack);
-                    stack.push_back(bn.getvch());
+
                 }
                 break;
 
