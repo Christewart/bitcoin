@@ -292,11 +292,11 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         # 1 input opcodes
         self.tapscript_satisfy_test(CScript([le8(x), OP_1ADD, OP_1, OP_EQUALVERIFY, le8(x + 1), OP_EQUAL]))
-        self.tapscript_satisfy_test(CScript([le8(max), OP_1ADD, OP_0, OP_EQUALVERIFY]))
+        self.tapscript_satisfy_test(CScript([le8(max), OP_1ADD, OP_0, OP_EQUALVERIFY, OP_DROP, OP_1]))
         self.tapscript_satisfy_test(CScript([le8(min), OP_1ADD, OP_1, OP_EQUALVERIFY, le8(min + 1), OP_EQUAL]))
 
         self.tapscript_satisfy_test(CScript([le8(x), OP_1SUB, OP_1, OP_EQUALVERIFY, le8(x - 1), OP_EQUAL]))
         self.tapscript_satisfy_test(CScript([le8(max), OP_1SUB, OP_1, OP_EQUALVERIFY, le8(max - 1), OP_EQUAL]))
-        self.tapscript_satisfy_test(CScript([le8(min), OP_1SUB, OP_0, OP_EQUALVERIFY]))
+        self.tapscript_satisfy_test(CScript([le8(-2 ** 63), OP_1SUB, OP_0, OP_EQUALVERIFY, OP_DROP, OP_1]))
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
