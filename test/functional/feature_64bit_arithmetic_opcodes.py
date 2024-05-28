@@ -263,14 +263,14 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         check_geq(6, 5, 1)
 
         max = 2**63-1
-        min = -2**63 + 1
+        min = -2**63
 
         # equal
         check_neg(5, -5)
         check_neg(-5, 5)
         check_neg(5, 4, fail="Script evaluated without error but finished with a false/empty top stack element")
         check_neg(-2**63, 0, fail="Script failed an OP_VERIFY operation")
-        check_neg(max, min)
+        check_neg(max, min + 1)
 
         self.log.info("Done checking comparison op codes. Checking conversion op codes...")
         # Non 8 byte inputs
@@ -297,6 +297,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         self.tapscript_satisfy_test(CScript([le8(x), OP_1SUB, OP_1, OP_EQUALVERIFY, le8(x - 1), OP_EQUAL]))
         self.tapscript_satisfy_test(CScript([le8(max), OP_1SUB, OP_1, OP_EQUALVERIFY, le8(max - 1), OP_EQUAL]))
-        self.tapscript_satisfy_test(CScript([le8(-2 ** 63), OP_1SUB, OP_0, OP_EQUALVERIFY, OP_DROP, OP_1]))
+        self.tapscript_satisfy_test(CScript([le8(min), OP_1SUB, OP_0, OP_EQUALVERIFY, OP_DROP, OP_1]))
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
