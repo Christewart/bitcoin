@@ -520,12 +520,23 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                     }
                     break;
                 case OP_1SUB:
-                    std::cout << " a " << a << "limit: " << std::numeric_limits<int64_t>::min() + 1 << std::endl;
                     if ((a < 0 && a < (std::numeric_limits<int64_t>::min() + 1)))
                         stack.push_back(vchFalse);
                     else {
                         popstack(stack);
                         push8_le(stack, a - 1);
+                        stack.push_back(vchTrue);
+                    }
+                    break;
+                case OP_ABS:
+                    if (a == std::numeric_limits<int64_t>::min()) {
+                        stack.push_back(vchFalse);
+                    } else if (a < 0) {
+                        popstack(stack);
+                        push8_le(stack,-a);
+                        stack.push_back(vchTrue);
+                    } else {
+                        //dont pop stack as OP_ABS is noop
                         stack.push_back(vchTrue);
                     }
                     break;
