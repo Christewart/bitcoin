@@ -501,6 +501,7 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
         case OP_ABS:
         case OP_NOT:
         case OP_0NOTEQUAL:
+        case OP_SIZE:
         {
             //1 input opcodes
             if (stack.size() < 1)
@@ -547,6 +548,10 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 case OP_0NOTEQUAL:
                     popstack(stack);
                     stack.push_back((a != 0) ? vchTrue : vchFalse);
+                    break;
+                case OP_SIZE:
+                    popstack(stack);
+                    push8_le(stack, vcha.size());
                     break;
             }
             break;
@@ -1140,27 +1145,27 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_SIZE:
                 {
-                    // (in -- in size)
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) {
-                    //this is for backwards compatability, we always want to use the old numbering
-                    //system for already deployed versions of the bitcoin protocol
-                        CScriptNum bn(stacktop(-1).size());
-                        stack.push_back(bn.getvch());
-                    } else if (sigversion == SigVersion::TAPSCRIPT_64BIT) {
-                        // All future soft forks assume 64-bit math.
-                        // Don't push variable length encodings onto
-                        // the stack when we are using SigVersion::TAPSCRIPT_64BIT.
-                        int64_t result = stacktop(-1).size();
-                        push8_le(stack, result);
-                    } else if (flags & SCRIPT_VERIFY_DISCOURAGE_OP_SUCCESS) {
-                        return set_error(serror, SCRIPT_ERR_DISCOURAGE_OP_SUCCESS);
-                    } else {
-                        return set_success(serror);
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // (in -- in size)
+                            if (stack.size() < 1)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            CScriptNum bn(stacktop(-1).size());
+                            stack.push_back(bn.getvch());
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror))
+                                return false;
+                            break;
+                        }
                     }
-
                 }
                 break;
 
