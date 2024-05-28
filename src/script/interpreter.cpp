@@ -511,11 +511,20 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             const int64_t a = read_le8_signed(vcha.data());
             switch(opcode) {
                 case OP_1ADD:
-                    if ((a > 0 && (a + 1) >= std::numeric_limits<int64_t>::max()))
+                    if ((a > 0 && (a + 1) > std::numeric_limits<int64_t>::max()))
                         stack.push_back(vchFalse);
                     else {
                         popstack(stack);
                         push8_le(stack, a + 1);
+                        stack.push_back(vchTrue);
+                    }
+                    break;
+                case OP_1SUB:
+                    if ((a < 0 && (a - 1) < std::numeric_limits<int64_t>::min()))
+                        stack.push_back(vchFalse);
+                    else {
+                        popstack(stack);
+                        push8_le(stack, a - 1);
                         stack.push_back(vchTrue);
                     }
                     break;
