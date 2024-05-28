@@ -571,6 +571,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
         case OP_MAX:
         case OP_MUL:
         case OP_DIV:
+        case OP_PICK:
+        case OP_ROLL:
         {
 
         
@@ -652,6 +654,21 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
                 case OP_MIN:                 popstack(stack); popstack(stack); stack.push_back( (a < b) ? vcha : vchb); break;
                 case OP_MAX:                 popstack(stack); popstack(stack); stack.push_back( (a > b) ? vcha : vchb); break;
+                
+                case OP_PICK:
+                case OP_ROLL:
+                {
+                    // (xn ... x2 x1 x0 n - xn ... x2 x1 x0 xn)
+                    // (xn ... x2 x1 x0 n - ... x2 x1 x0 xn)
+                    popstack(stack);
+                    if (b < 0 || b >= (int)stack.size())
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                    valtype vch = stacktop(-b-1);
+                    if (opcode == OP_ROLL)
+                        stack.erase(stack.end()-b-1);
+                    stack.push_back(vch);
+                    break;
+                }
                 default:                       assert(!"invalid opcode"); break;
             }
             break;
@@ -1124,18 +1141,34 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_PICK:
                 case OP_ROLL:
                 {
-                    // (xn ... x2 x1 x0 n - xn ... x2 x1 x0 xn)
-                    // (xn ... x2 x1 x0 n - ... x2 x1 x0 xn)
-                    if (stack.size() < 2)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    int n = CScriptNum(stacktop(-1), fRequireMinimal).getint();
-                    popstack(stack);
-                    if (n < 0 || n >= (int)stack.size())
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    valtype vch = stacktop(-n-1);
-                    if (opcode == OP_ROLL)
-                        stack.erase(stack.end()-n-1);
-                    stack.push_back(vch);
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // (xn ... x2 x1 x0 n - xn ... x2 x1 x0 xn)
+                            // (xn ... x2 x1 x0 n - ... x2 x1 x0 xn)
+                            if (stack.size() < 2)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            int n = CScriptNum(stacktop(-1), fRequireMinimal).getint();
+                            popstack(stack);
+                            if (n < 0 || n >= (int)stack.size())
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            valtype vch = stacktop(-n-1);
+                            if (opcode == OP_ROLL)
+                            stack.erase(stack.end()-n-1);
+                            stack.push_back(vch);
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror))
+                                return false;
+                            break;
+                        }
+                    }
                 }
                 break;
 
