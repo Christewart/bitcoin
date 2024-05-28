@@ -540,6 +540,14 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                         stack.push_back(vchTrue);
                     }
                     break;
+                case OP_NOT:
+                    popstack(stack);
+                    stack.push_back( (a == 0) ? vchTrue : vchFalse);
+                    break;
+                case OP_0NOTEQUAL:
+                    popstack(stack);
+                    stack.push_back((a != 0) ? vchTrue : vchFalse);
+                    break;
             }
             break;
         }
