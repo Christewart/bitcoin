@@ -571,6 +571,9 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
         case OP_MAX:
         case OP_MUL:
         case OP_DIV:
+        {
+
+        
             //2 input opcodes
             if (stack.size() < 2)
                 return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
@@ -652,6 +655,13 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 default:                       assert(!"invalid opcode"); break;
             }
             break;
+        }
+        case OP_DEPTH:
+        {
+            push8_le(stack,stack.size());
+            break;
+        }
+
     }
     return true;
 }
@@ -1050,9 +1060,26 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_DEPTH:
                 {
-                    // -- stacksize
-                    CScriptNum bn(stack.size());
-                    stack.push_back(bn.getvch());
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // -- stacksize
+                            CScriptNum bn(stack.size());
+                            stack.push_back(bn.getvch());
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror))
+                                return false;
+                            break;
+                        }
+                    }
+
                 }
                 break;
 
