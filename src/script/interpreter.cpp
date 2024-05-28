@@ -654,7 +654,7 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 case OP_GREATERTHANOREQUAL:  popstack(stack); popstack(stack); stack.push_back( (a >= b) ? vchTrue : vchFalse ); break;
                 case OP_MIN:                 popstack(stack); popstack(stack); stack.push_back( (a < b) ? vcha : vchb); break;
                 case OP_MAX:                 popstack(stack); popstack(stack); stack.push_back( (a > b) ? vcha : vchb); break;
-                
+
                 case OP_PICK:
                 case OP_ROLL:
                 {

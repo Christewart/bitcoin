@@ -312,7 +312,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         self.tapscript_satisfy_test(CScript([OP_DEPTH, OP_0, OP_EQUAL]))
         self.tapscript_satisfy_test(CScript([OP_1, OP_DEPTH, OP_1, OP_EQUALVERIFY]))
-        
+
         self.tapscript_satisfy_test(CScript([OP_1, OP_0, OP_PICK, OP_EQUAL]))
         self.tapscript_satisfy_test(CScript([OP_1, OP_1, OP_PICK]), fail="Operation not valid with the current stack size")
         self.tapscript_satisfy_test(CScript([OP_1NEGATE, OP_PICK]), fail="Operation not valid with the current stack size")
