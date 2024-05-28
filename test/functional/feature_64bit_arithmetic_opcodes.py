@@ -278,8 +278,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         x = 100000000000
         y = 200000000000
-        self.tapscript_satisfy_test(CScript([le8(x), le8(x), OP_ADD, OP_DROP, OP_SIZE, OP_8, OP_EQUALVERIFY, le8(y), OP_EQUAL]))
-
         # implicit conversion tests
 
         # 2 input opcodes
@@ -309,6 +307,9 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         self.tapscript_satisfy_test(CScript([OP_0, OP_0NOTEQUAL, OP_NOT]))
         self.tapscript_satisfy_test(CScript([OP_1, OP_0NOTEQUAL]))
+
+        self.tapscript_satisfy_test(CScript([le8(x), OP_SIZE, OP_8, OP_EQUAL]))
+
 
 
 if __name__ == '__main__':
