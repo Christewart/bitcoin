@@ -489,7 +489,7 @@ valtype GetTrue(SigVersion sigversion ) {
     }
 }
 
-bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcodetype& opcode, ScriptError* serror)
+bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcodetype& opcode, ScriptError* serror, const BaseSignatureChecker& checker)
 {
     static const valtype vchFalse = GetFalse(SigVersion::TAPSCRIPT_64BIT);
     static const valtype vchTrue = GetTrue(SigVersion::TAPSCRIPT_64BIT);
@@ -502,6 +502,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
         case OP_NOT:
         case OP_0NOTEQUAL:
         case OP_SIZE:
+        case OP_CHECKLOCKTIMEVERIFY:
+        case OP_CHECKSEQUENCEVERIFY:
         {
             //1 input opcodes
             if (stack.size() < 1)
@@ -553,6 +555,48 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                     popstack(stack);
                     push8_le(stack, vcha.size());
                     break;
+                case OP_CHECKLOCKTIMEVERIFY:
+                {
+
+                    std::cout << "OP_CLTV Eval64BitOpCode() " << std::endl;
+                    if (stack.size() < 1)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    // In the rare event that the argument may be < 0 due to
+                    // some arithmetic being done first, you can always use
+                    // 0 MAX CHECKLOCKTIMEVERIFY.
+                    if (a < 0)
+                        return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
+
+                    // Actually compare the specified lock time with the transaction.
+                    if (!checker.CheckLockTime(a))
+                        return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
+
+                    break;
+                }
+                case OP_CHECKSEQUENCEVERIFY:
+                {
+
+                    if (stack.size() < 1)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    // In the rare event that the argument may be < 0 due to
+                    // some arithmetic being done first, you can always use
+                    // 0 MAX CHECKSEQUENCEVERIFY.
+                    if (a < 0)
+                        return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
+
+                    // To provide for future soft-fork extensibility, if the
+                    // operand has the disabled lock-time flag set,
+                    // CHECKSEQUENCEVERIFY behaves as a NOP.
+                    if ((a & CTxIn::SEQUENCE_LOCKTIME_DISABLE_FLAG) != 0)
+                        break;
+
+                    // Compare the specified sequence number with the input.
+                    if (!checker.CheckSequence(a))
+                        return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
+                    break;
+                }
             }
             break;
         }
@@ -837,77 +881,107 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_CHECKLOCKTIMEVERIFY:
                 {
-                    if (!(flags & SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY)) {
-                        // not enabled; treat as a NOP2
-                        break;
+                    switch(sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            if (!(flags & SCRIPT_VERIFY_CHECKLOCKTIMEVERIFY)) {
+                                // not enabled; treat as a NOP2
+                                break;
+                            }
+
+                            if (stack.size() < 1)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                            // Note that elsewhere numeric opcodes are limited to
+                            // operands in the range -2**31+1 to 2**31-1, however it is
+                            // legal for opcodes to produce results exceeding that
+                            // range. This limitation is implemented by CScriptNum's
+                            // default 4-byte limit.
+                            //
+                            // If we kept to that limit we'd have a year 2038 problem,
+                            // even though the nLockTime field in transactions
+                            // themselves is uint32 which only becomes meaningless
+                            // after the year 2106.
+                            //
+                            // Thus as a special case we tell CScriptNum to accept up
+                            // to 5-byte bignums, which are good until 2**39-1, well
+                            // beyond the 2**32-1 limit of the nLockTime field itself.
+                            const CScriptNum nLockTime(stacktop(-1), fRequireMinimal, 5);
+
+                            // In the rare event that the argument may be < 0 due to
+                            // some arithmetic being done first, you can always use
+                            // 0 MAX CHECKLOCKTIMEVERIFY.
+                            if (nLockTime < 0)
+                                return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
+
+                            // Actually compare the specified lock time with the transaction.
+                            if (!checker.CheckLockTime(nLockTime.GetInt64()))
+                                return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
+
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
+                                return false;
+                            break;
+                        }
                     }
-
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    // Note that elsewhere numeric opcodes are limited to
-                    // operands in the range -2**31+1 to 2**31-1, however it is
-                    // legal for opcodes to produce results exceeding that
-                    // range. This limitation is implemented by CScriptNum's
-                    // default 4-byte limit.
-                    //
-                    // If we kept to that limit we'd have a year 2038 problem,
-                    // even though the nLockTime field in transactions
-                    // themselves is uint32 which only becomes meaningless
-                    // after the year 2106.
-                    //
-                    // Thus as a special case we tell CScriptNum to accept up
-                    // to 5-byte bignums, which are good until 2**39-1, well
-                    // beyond the 2**32-1 limit of the nLockTime field itself.
-                    const CScriptNum nLockTime(stacktop(-1), fRequireMinimal, 5);
-
-                    // In the rare event that the argument may be < 0 due to
-                    // some arithmetic being done first, you can always use
-                    // 0 MAX CHECKLOCKTIMEVERIFY.
-                    if (nLockTime < 0)
-                        return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
-
-                    // Actually compare the specified lock time with the transaction.
-                    if (!checker.CheckLockTime(nLockTime.GetInt64()))
-                        return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
-
-                    break;
                 }
-
+                break;
                 case OP_CHECKSEQUENCEVERIFY:
                 {
-                    if (!(flags & SCRIPT_VERIFY_CHECKSEQUENCEVERIFY)) {
-                        // not enabled; treat as a NOP3
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            if (!(flags & SCRIPT_VERIFY_CHECKSEQUENCEVERIFY)) {
+                                // not enabled; treat as a NOP3
+                                break;
+                            }
+
+                            if (stack.size() < 1)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                            // nSequence, like nLockTime, is a 32-bit unsigned integer
+                            // field. See the comment in CHECKLOCKTIMEVERIFY regarding
+                            // 5-byte numeric operands.
+                            const CScriptNum nSequence(stacktop(-1), fRequireMinimal, 5);
+
+                            // In the rare event that the argument may be < 0 due to
+                            // some arithmetic being done first, you can always use
+                            // 0 MAX CHECKSEQUENCEVERIFY.
+                            if (nSequence < 0)
+                                return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
+
+                            // To provide for future soft-fork extensibility, if the
+                            // operand has the disabled lock-time flag set,
+                            // CHECKSEQUENCEVERIFY behaves as a NOP.
+                            if ((nSequence & CTxIn::SEQUENCE_LOCKTIME_DISABLE_FLAG) != 0)
+                                break;
+
+                            // Compare the specified sequence number with the input.
+                            if (!checker.CheckSequence(nSequence.GetInt64()))
+                                return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
+                        }
+                        break;
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
+                                return false;
+                        }
                         break;
                     }
 
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    // nSequence, like nLockTime, is a 32-bit unsigned integer
-                    // field. See the comment in CHECKLOCKTIMEVERIFY regarding
-                    // 5-byte numeric operands.
-                    const CScriptNum nSequence(stacktop(-1), fRequireMinimal, 5);
-
-                    // In the rare event that the argument may be < 0 due to
-                    // some arithmetic being done first, you can always use
-                    // 0 MAX CHECKSEQUENCEVERIFY.
-                    if (nSequence < 0)
-                        return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
-
-                    // To provide for future soft-fork extensibility, if the
-                    // operand has the disabled lock-time flag set,
-                    // CHECKSEQUENCEVERIFY behaves as a NOP.
-                    if ((nSequence & CTxIn::SEQUENCE_LOCKTIME_DISABLE_FLAG) != 0)
-                        break;
-
-                    // Compare the specified sequence number with the input.
-                    if (!checker.CheckSequence(nSequence.GetInt64()))
-                        return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
-
-                    break;
                 }
-
+                break;
                 case OP_NOP1: case OP_NOP4: case OP_NOP5:
                 case OP_NOP6: case OP_NOP7: case OP_NOP8: case OP_NOP9: case OP_NOP10:
                 {
@@ -1106,7 +1180,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
                         case SigVersion::TAPSCRIPT_64BIT:
                         {
-                            if (!Eval64BitOpCode(stack,opcode,serror))
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                         }
@@ -1179,7 +1253,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
                         case SigVersion::TAPSCRIPT_64BIT:
                         {
-                            if (!Eval64BitOpCode(stack,opcode,serror))
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                         }
@@ -1236,7 +1310,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
                         case SigVersion::TAPSCRIPT_64BIT:
                         {
-                            if (!Eval64BitOpCode(stack,opcode,serror))
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                         }
@@ -1314,7 +1388,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             break;
                         }
                         case SigVersion::TAPSCRIPT_64BIT:
-                            if (!Eval64BitOpCode(stack,opcode,serror))
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                     }
@@ -1389,7 +1463,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             break;
                         }
                         case SigVersion::TAPSCRIPT_64BIT: 
-                            if (!Eval64BitOpCode(stack,opcode,serror)) 
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                     }
@@ -1419,7 +1493,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         }
                         case SigVersion::TAPSCRIPT_64BIT:
                         {
-                            if (!Eval64BitOpCode(stack,opcode,serror))
+                            if (!Eval64BitOpCode(stack,opcode,serror,checker))
                                 return false;
                             break;
                         }
