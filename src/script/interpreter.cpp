@@ -679,6 +679,22 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             break;
         }
 
+        case OP_WITHIN:
+        {
+            // (x min max -- out)
+            if (stack.size() < 3)
+                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+            int64_t bn1 = read_le8_signed(stacktop(-3).data());
+            int64_t bn2 = read_le8_signed(stacktop(-2).data());
+            int64_t bn3 = read_le8_signed(stacktop(-1).data());
+            bool fValue = (bn2 <= bn1 && bn1 < bn3);
+            popstack(stack);
+            popstack(stack);
+            popstack(stack);
+            stack.push_back(fValue ? vchTrue : vchFalse);
+            break;
+        }
+
     }
     return true;
 }
@@ -1382,20 +1398,35 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
                 case OP_WITHIN:
                 {
-                    // (x min max -- out)
-                    if (stack.size() < 3)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn1(stacktop(-3), fRequireMinimal);
-                    CScriptNum bn2(stacktop(-2), fRequireMinimal);
-                    CScriptNum bn3(stacktop(-1), fRequireMinimal);
-                    bool fValue = (bn2 <= bn1 && bn1 < bn3);
-                    popstack(stack);
-                    popstack(stack);
-                    popstack(stack);
-                    stack.push_back(fValue ? vchTrue : vchFalse);
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // (x min max -- out)
+                            if (stack.size() < 3)
+                                return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            CScriptNum bn1(stacktop(-3), fRequireMinimal);
+                            CScriptNum bn2(stacktop(-2), fRequireMinimal);
+                            CScriptNum bn3(stacktop(-1), fRequireMinimal);
+                            bool fValue = (bn2 <= bn1 && bn1 < bn3);
+                            popstack(stack);
+                            popstack(stack);
+                            popstack(stack);
+                            stack.push_back(fValue ? vchTrue : vchFalse);
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            if (!Eval64BitOpCode(stack,opcode,serror))
+                                return false;
+                            break;
+                        }
+                    }
                 }
                 break;
-
 
                 //
                 // Crypto
