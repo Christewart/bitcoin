@@ -232,8 +232,8 @@ struct Satisfier {
     std::vector<unsigned char> ToPKBytes(const Key& key) const { return {key.begin(), key.end()}; }
 
     //! Time lock satisfactions.
-    bool CheckAfter(uint32_t value) const { return m_creator.Checker().CheckLockTime(CScriptNum(value)); }
-    bool CheckOlder(uint32_t value) const { return m_creator.Checker().CheckSequence(CScriptNum(value)); }
+    bool CheckAfter(uint32_t value) const { return m_creator.Checker().CheckLockTime(value); }
+    bool CheckOlder(uint32_t value) const { return m_creator.Checker().CheckSequence(value); }
 
     //! Hash preimage satisfactions.
     miniscript::Availability SatSHA256(const std::vector<unsigned char>& hash, std::vector<unsigned char>& preimage) const {
@@ -703,8 +703,8 @@ public:
     DummySignatureChecker() = default;
     bool CheckECDSASignature(const std::vector<unsigned char>& sig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override { return sig.size() != 0; }
     bool CheckSchnorrSignature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror) const override { return sig.size() != 0; }
-    bool CheckLockTime(const CScriptNum& nLockTime) const override { return true; }
-    bool CheckSequence(const CScriptNum& nSequence) const override { return true; }
+    bool CheckLockTime(const int64_t nLockTime) const override { return true; }
+    bool CheckSequence(const int64_t nSequence) const override { return true; }
 };
 }
 

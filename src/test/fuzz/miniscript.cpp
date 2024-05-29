@@ -297,8 +297,8 @@ const struct CheckerContext: BaseSignatureChecker {
         if (it == TEST_DATA.schnorr_sigs.end()) return false;
         return std::ranges::equal(it->second.first, sig);
     }
-    bool CheckLockTime(const CScriptNum& nLockTime) const override { return nLockTime.GetInt64() & 1; }
-    bool CheckSequence(const CScriptNum& nSequence) const override { return nSequence.GetInt64() & 1; }
+    bool CheckLockTime(const int64_t nLockTime) const override { return nLockTime & 1; }
+    bool CheckSequence(const int64_t nSequence) const override { return nSequence & 1; }
 } CHECKER_CTX;
 
 //! Context to check for duplicates when instancing a Node.

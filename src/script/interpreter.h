@@ -248,12 +248,12 @@ public:
         return false;
     }
 
-    virtual bool CheckLockTime(const CScriptNum& nLockTime) const
+    virtual bool CheckLockTime(const int64_t nLockTime) const
     {
          return false;
     }
 
-    virtual bool CheckSequence(const CScriptNum& nSequence) const
+    virtual bool CheckSequence(const int64_t nSequence) const
     {
          return false;
     }
@@ -292,8 +292,8 @@ public:
     GenericTransactionSignatureChecker(const T* txToIn, unsigned int nInIn, const CAmount& amountIn, const PrecomputedTransactionData& txdataIn, MissingDataBehavior mdb) : txTo(txToIn), m_mdb(mdb), nIn(nInIn), amount(amountIn), txdata(&txdataIn) {}
     bool CheckECDSASignature(const std::vector<unsigned char>& scriptSig, const std::vector<unsigned char>& vchPubKey, const CScript& scriptCode, SigVersion sigversion) const override;
     bool CheckSchnorrSignature(Span<const unsigned char> sig, Span<const unsigned char> pubkey, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror = nullptr) const override;
-    bool CheckLockTime(const CScriptNum& nLockTime) const override;
-    bool CheckSequence(const CScriptNum& nSequence) const override;
+    bool CheckLockTime(const int64_t nLockTime) const override;
+    bool CheckSequence(const int64_t nSequence) const override;
 };
 
 using TransactionSignatureChecker = GenericTransactionSignatureChecker<CTransaction>;
@@ -317,11 +317,11 @@ public:
         return m_checker.CheckSchnorrSignature(sig, pubkey, sigversion, execdata, serror);
     }
 
-    bool CheckLockTime(const CScriptNum& nLockTime) const override
+    bool CheckLockTime(const int64_t nLockTime) const override
     {
         return m_checker.CheckLockTime(nLockTime);
     }
-    bool CheckSequence(const CScriptNum& nSequence) const override
+    bool CheckSequence(const int64_t nSequence) const override
     {
         return m_checker.CheckSequence(nSequence);
     }

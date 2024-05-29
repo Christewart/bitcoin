@@ -280,14 +280,14 @@ public:
         return std::ranges::equal(sig, it->second);
     }
 
-    bool CheckLockTime(const CScriptNum& locktime) const override {
+    bool CheckLockTime(const int64_t locktime) const override {
         // Delegate to Satisfier.
-        return ctx.CheckAfter(locktime.GetInt64());
+        return ctx.CheckAfter(locktime);
     }
 
-    bool CheckSequence(const CScriptNum& sequence) const override {
+    bool CheckSequence(const int64_t sequence) const override {
         // Delegate to Satisfier.
-        return ctx.CheckOlder(sequence.GetInt64());
+        return ctx.CheckOlder(sequence);
     }
 };
 

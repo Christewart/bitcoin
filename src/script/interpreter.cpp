@@ -868,7 +868,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_NEGATIVE_LOCKTIME);
 
                     // Actually compare the specified lock time with the transaction.
-                    if (!checker.CheckLockTime(nLockTime))
+                    if (!checker.CheckLockTime(nLockTime.GetInt64()))
                         return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
 
                     break;
@@ -902,7 +902,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         break;
 
                     // Compare the specified sequence number with the input.
-                    if (!checker.CheckSequence(nSequence))
+                    if (!checker.CheckSequence(nSequence.GetInt64()))
                         return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
 
                     break;
@@ -2131,7 +2131,7 @@ bool GenericTransactionSignatureChecker<T>::CheckSchnorrSignature(Span<const uns
 }
 
 template <class T>
-bool GenericTransactionSignatureChecker<T>::CheckLockTime(const CScriptNum& nLockTime) const
+bool GenericTransactionSignatureChecker<T>::CheckLockTime(const int64_t nLockTime) const
 {
     // There are two kinds of nLockTime: lock-by-blockheight
     // and lock-by-blocktime, distinguished by whether
@@ -2168,7 +2168,7 @@ bool GenericTransactionSignatureChecker<T>::CheckLockTime(const CScriptNum& nLoc
 }
 
 template <class T>
-bool GenericTransactionSignatureChecker<T>::CheckSequence(const CScriptNum& nSequence) const
+bool GenericTransactionSignatureChecker<T>::CheckSequence(const int64_t nSequence) const
 {
     // Relative lock times are supported by comparing the passed
     // in operand to the sequence number of the input.
@@ -2190,7 +2190,7 @@ bool GenericTransactionSignatureChecker<T>::CheckSequence(const CScriptNum& nSeq
     // before doing the integer comparisons
     const uint32_t nLockTimeMask = CTxIn::SEQUENCE_LOCKTIME_TYPE_FLAG | CTxIn::SEQUENCE_LOCKTIME_MASK;
     const int64_t txToSequenceMasked = txToSequence & nLockTimeMask;
-    const CScriptNum nSequenceMasked = nSequence & nLockTimeMask;
+    const int64_t nSequenceMasked = nSequence & nLockTimeMask;
 
     // There are two kinds of nSequence: lock-by-blockheight
     // and lock-by-blocktime, distinguished by whether

@@ -35,12 +35,12 @@ public:
         return m_fuzzed_data_provider.ConsumeBool();
     }
 
-    bool CheckLockTime(const CScriptNum& nLockTime) const override
+    bool CheckLockTime(const int64_t nLockTime) const override
     {
         return m_fuzzed_data_provider.ConsumeBool();
     }
 
-    bool CheckSequence(const CScriptNum& nSequence) const override
+    bool CheckSequence(const int64_t nSequence) const override
     {
         return m_fuzzed_data_provider.ConsumeBool();
     }
