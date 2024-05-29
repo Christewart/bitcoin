@@ -645,8 +645,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                     popstack(stack); popstack(stack); stack.push_back( (a == b) ? vchTrue : vchFalse);
                     if (CastToBool(stacktop(-1))) popstack(stack);
                     else return set_error(serror, SCRIPT_ERR_NUMEQUALVERIFY);
-                    break;
                 }
+                break;
                 case OP_NUMNOTEQUAL:         popstack(stack); popstack(stack); stack.push_back( (a != b) ? vchTrue : vchFalse); break;
                 case OP_LESSTHAN:            popstack(stack); popstack(stack); stack.push_back( (a <  b) ? vchTrue : vchFalse ); break;
                 case OP_LESSTHANOREQUAL:     popstack(stack); popstack(stack); stack.push_back( (a <= b) ? vchTrue : vchFalse ); break;
@@ -671,14 +671,13 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                 }
                 default:                       assert(!"invalid opcode"); break;
             }
-            break;
         }
+        break;
         case OP_DEPTH:
         {
             push8_le(stack,stack.size());
-            break;
         }
-
+        break;
         case OP_WITHIN:
         {
             // (x min max -- out)
@@ -692,8 +691,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             popstack(stack);
             popstack(stack);
             stack.push_back(fValue ? vchTrue : vchFalse);
-            break;
         }
+        break;
 
     }
     return true;
