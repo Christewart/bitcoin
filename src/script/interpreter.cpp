@@ -597,6 +597,22 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                         return set_error(serror, SCRIPT_ERR_UNSATISFIED_LOCKTIME);
                     break;
                 }
+                case OP_NEGATE:
+                {
+                    if (stack.size() < 1)
+                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                    valtype& vcha = stacktop(-1);
+                    if (vcha.size() != 8)
+                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
+
+                    int64_t a = read_le8_signed(vcha.data());
+                    if (a == std::numeric_limits<int64_t>::min()) { stack.push_back(vchFalse); break; }
+
+                    popstack(stack);
+                    push8_le(stack, -a);
+                    stack.push_back(vchTrue);
+                }
             }
             break;
         }
@@ -1698,28 +1714,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     }
                 }
                 break;
-
-                case OP_NEG64:
-                {
-                    // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
-
-                    if (stack.size() < 1)
-                        return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
-                    valtype& vcha = stacktop(-1);
-                    if (vcha.size() != 8)
-                        return set_error(serror, SCRIPT_ERR_EXPECTED_8BYTES);
-
-                    int64_t a = read_le8_signed(vcha.data());
-                    if (a == std::numeric_limits<int64_t>::min()) { stack.push_back(vchFalse); break; }
-
-                    popstack(stack);
-                    push8_le(stack, -a);
-                    stack.push_back(vchTrue);
-                }
-                break;
-
                 default:
                     return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
             }
