@@ -252,9 +252,6 @@ OP_NOP10 = CScriptOp(0xb9)
 # BIP 342 opcodes (Tapscript)
 OP_CHECKSIGADD = CScriptOp(0xba)
 
-# Arithmetic opcodes
-OP_NEG64 = CScriptOp(0xdb)
-
 OP_INVALIDOPCODE = CScriptOp(0xff)
 
 OPCODE_NAMES.update({
@@ -370,8 +367,7 @@ OPCODE_NAMES.update({
     OP_NOP9: 'OP_NOP9',
     OP_NOP10: 'OP_NOP10',
     OP_CHECKSIGADD: 'OP_CHECKSIGADD',
-    OP_INVALIDOPCODE: 'OP_INVALIDOPCODE',
-    OP_NEG64: 'OP_NEG64'
+    OP_INVALIDOPCODE: 'OP_INVALIDOPCODE'
 })
 
 class CScriptInvalidError(Exception):
