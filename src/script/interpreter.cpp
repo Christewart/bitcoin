@@ -613,6 +613,8 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
                     push8_le(stack, -a);
                     stack.push_back(vchTrue);
                 }
+                break;
+                default:                       assert(!"invalid opcode"); break;
             }
             break;
         }
@@ -753,6 +755,7 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             stack.push_back(fValue ? vchTrue : vchFalse);
         }
         break;
+        default:                       assert(!"invalid opcode"); break;
     }
     return true;
 }
