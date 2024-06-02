@@ -753,7 +753,6 @@ bool Eval64BitOpCode(std::vector<std::vector<unsigned char>>& stack, const opcod
             stack.push_back(fValue ? vchTrue : vchFalse);
         }
         break;
-
     }
     return true;
 }
@@ -1584,25 +1583,54 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_CHECKSIGADD:
                 {
-                    // OP_CHECKSIGADD is only available in Tapscript
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+                    switch (sigversion)
+                    {
+                        case SigVersion::BASE:
+                        case SigVersion::WITNESS_V0:
+                            // OP_CHECKSIGADD is only available in Tapscript
+                            return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+                        case SigVersion::TAPROOT:
+                        case SigVersion::TAPSCRIPT:
+                        {
+                            // (sig num pubkey -- num)
+                            if (stack.size() < 3) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
-                    // (sig num pubkey -- num)
-                    if (stack.size() < 3) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+                            const valtype& sig = stacktop(-3);
+                            const CScriptNum num(stacktop(-2), fRequireMinimal);
+                            const valtype& pubkey = stacktop(-1);
 
-                    const valtype& sig = stacktop(-3);
-                    const CScriptNum num(stacktop(-2), fRequireMinimal);
-                    const valtype& pubkey = stacktop(-1);
+                            bool success = true;
+                            if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success)) return false;
+                            popstack(stack);
+                            popstack(stack);
+                            popstack(stack);
+                            stack.push_back((num + (success ? 1 : 0)).getvch());
+                            break;
+                        }
+                        case SigVersion::TAPSCRIPT_64BIT:
+                        {
+                            //keeping this out of Eval64BitOpCode() for now
+                            //to avoid adding all the parameters required for EvalChecksig()...
 
-                    bool success = true;
-                    if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success)) return false;
-                    popstack(stack);
-                    popstack(stack);
-                    popstack(stack);
-                    stack.push_back((num + (success ? 1 : 0)).getvch());
+                            // (sig num pubkey -- num)
+                            if (stack.size() < 3) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
+
+                            const valtype& sig = stacktop(-3);
+                            const int64_t num = read_le8_signed(stacktop(-2).data());
+                            const valtype& pubkey = stacktop(-1);
+
+                            bool success = true;
+                            if (!EvalChecksig(sig, pubkey, pbegincodehash, pend, execdata, flags, checker, sigversion, serror, success)) return false;
+                            popstack(stack);
+                            popstack(stack);
+                            popstack(stack);
+                            push8_le(stack, num + (success ? 1 : 0));
+                            break;
+                        }
+                    }
+                    break;
                 }
                 break;
-
                 case OP_CHECKMULTISIG:
                 case OP_CHECKMULTISIGVERIFY:
                 {
