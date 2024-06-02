@@ -330,5 +330,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         # come back and implement these
         # self.tapscript_satisfy_test(CScript([OP_0, OP_CHECKSEQUENCEVERIFY, OP_DROP, OP_1]),seq=2)
         # self.tapscript_satisfy_test(CScript([le8(101), OP_CHECKLOCKTIMEVERIFY, OP_DROP, OP_1]),locktime=100, fail="Locktime requirement not satisfied")
+
+        # comeback and add OP_CHECKSGIADD test
 if __name__ == '__main__':
     Arithmetic64bitTest(__file__).main()
