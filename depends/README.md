@@ -38,17 +38,18 @@ Common `host-platform-triplet`s for cross compilation are:
 - `riscv32-linux-gnu` for Linux RISC-V 32 bit
 - `riscv64-linux-gnu` for Linux RISC-V 64 bit
 - `s390x-linux-gnu` for Linux S390X
-- `armv7a-linux-android` for Android ARM 32 bit
-- `aarch64-linux-android` for Android ARM 64 bit
-- `x86_64-linux-android` for Android x86 64 bit
 
-The paths are automatically configured and no other options are needed unless targeting [Android](../doc/build-android.md).
+The paths are automatically configured and no other options are needed.
 
 ### Install the required dependencies: Ubuntu & Debian
 
+#### Common
+
+    apt install automake bison cmake curl libtool make patch pkg-config python3 xz-utils
+
 #### For macOS cross compilation
 
-    sudo apt-get install curl bsdmainutils cmake zip
+    sudo apt-get install g++ zip
 
 Note: You must obtain the macOS SDK before proceeding with a cross-compile.
 Under the depends directory, create a subdirectory named `SDKs`.
@@ -63,7 +64,7 @@ For more information, see [SDK Extraction](../contrib/macdeploy/README.md#sdk-ex
 
 Common linux dependencies:
 
-    sudo apt-get install make automake cmake curl g++-multilib libtool binutils bsdmainutils pkg-config python3 patch bison
+    sudo apt-get install g++-multilib binutils
 
 For linux ARM cross compilation:
 
@@ -84,6 +85,10 @@ For linux RISC-V 64-bit cross compilation (there are no packages for 32-bit):
 For linux S390X cross compilation:
 
     sudo apt-get install g++-s390x-linux-gnu binutils-s390x-linux-gnu
+
+### Install the required dependencies: FreeBSD
+
+    pkg install bash
 
 ### Install the required dependencies: OpenBSD
 
@@ -120,7 +125,7 @@ The following can be set when running make: `make FOO=bar`
 - `LOG`: Use file-based logging for individual packages. During a package build its log file
   resides in the `depends` directory, and the log file is printed out automatically in case
   of build error. After successful build log files are moved along with package archives
-- `LTO`: Use LTO when building packages.
+- `LTO`: Enable options needed for LTO. Does not add `-flto` related options to *FLAGS.
 - `NO_HARDEN=1`: Don't use hardening options when building packages
 
 If some packages are not built, for example `make NO_WALLET=1`, the appropriate

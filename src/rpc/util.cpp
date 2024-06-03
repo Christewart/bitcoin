@@ -2,6 +2,8 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
+#include <config/bitcoin-config.h> // IWYU pragma: keep
+
 #include <clientversion.h>
 #include <core_io.h>
 #include <common/args.h>
@@ -14,14 +16,19 @@
 #include <script/signingprovider.h>
 #include <script/solver.h>
 #include <tinyformat.h>
+#include <univalue.h>
 #include <util/check.h>
 #include <util/result.h>
 #include <util/strencodings.h>
 #include <util/string.h>
 #include <util/translation.h>
+#include <warnings.h>
 
+#include <algorithm>
+#include <iterator>
 #include <string_view>
 #include <tuple>
+#include <utility>
 
 const std::string UNIX_EPOCH_TIME = "UNIX epoch time";
 const std::string EXAMPLE_ADDRESS[2] = {"bc1q09vm5lfy0j5reeulh4x5752q25uqqvz34hufdl", "bc1q02ad21edsxd23d32dfgqqsz4vv4nmtfzuklhy3"};
@@ -73,6 +80,13 @@ CAmount AmountFromValue(const UniValue& value, int decimals)
     if (!MoneyRange(amount))
         throw JSONRPCError(RPC_TYPE_ERROR, "Amount out of range");
     return amount;
+}
+
+CFeeRate ParseFeeRate(const UniValue& json)
+{
+    CAmount val{AmountFromValue(json)};
+    if (val >= COIN) throw JSONRPCError(RPC_INVALID_PARAMETER, "Fee rates larger than or equal to 1BTC/kvB are not accepted");
+    return CFeeRate{val};
 }
 
 uint256 ParseHashV(const UniValue& v, std::string_view name)
@@ -161,8 +175,8 @@ std::string HelpExampleCliNamed(const std::string& methodname, const RPCArgList&
 
 std::string HelpExampleRpc(const std::string& methodname, const std::string& args)
 {
-    return "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", "
-        "\"method\": \"" + methodname + "\", \"params\": [" + args + "]}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n";
+    return "> curl --user myusername --data-binary '{\"jsonrpc\": \"2.0\", \"id\": \"curltest\", "
+        "\"method\": \"" + methodname + "\", \"params\": [" + args + "]}' -H 'content-type: application/json;' http://127.0.0.1:8332/\n";
 }
 
 std::string HelpExampleRpcNamed(const std::string& methodname, const RPCArgList& args)
@@ -172,19 +186,22 @@ std::string HelpExampleRpcNamed(const std::string& methodname, const RPCArgList&
         params.pushKV(param.first, param.second);
     }
 
-    return "> curl --user myusername --data-binary '{\"jsonrpc\": \"1.0\", \"id\": \"curltest\", "
-           "\"method\": \"" + methodname + "\", \"params\": " + params.write() + "}' -H 'content-type: text/plain;' http://127.0.0.1:8332/\n";
+    return "> curl --user myusername --data-binary '{\"jsonrpc\": \"2.0\", \"id\": \"curltest\", "
+           "\"method\": \"" + methodname + "\", \"params\": " + params.write() + "}' -H 'content-type: application/json;' http://127.0.0.1:8332/\n";
 }
 
 // Converts a hex string to a public key if possible
 CPubKey HexToPubKey(const std::string& hex_in)
 {
     if (!IsHex(hex_in)) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key: " + hex_in);
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey \"" + hex_in + "\" must be a hex string");
+    }
+    if (hex_in.length() != 66 && hex_in.length() != 130) {
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey \"" + hex_in + "\" must have a length of either 33 or 65 bytes");
     }
     CPubKey vchPubKey(ParseHex(hex_in));
     if (!vchPubKey.IsFullyValid()) {
-        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Invalid public key: " + hex_in);
+        throw JSONRPCError(RPC_INVALID_ADDRESS_OR_KEY, "Pubkey \"" + hex_in + "\" must be cryptographically valid.");
     }
     return vchPubKey;
 }
@@ -403,6 +420,7 @@ struct Sections {
     /**
      * Recursive helper to translate an RPCArg into sections
      */
+    // NOLINTNEXTLINE(misc-no-recursion)
     void Push(const RPCArg& arg, const size_t current_indent = 5, const OuterType outer_type = OuterType::NONE)
     {
         const auto indent = std::string(current_indent, ' ');
@@ -627,7 +645,7 @@ UniValue RPCHelpMan::HandleRequest(const JSONRPCRequest& request) const
                 mismatch.setNull();
                 break;
             }
-            mismatch.push_back(match);
+            mismatch.push_back(std::move(match));
         }
         if (!mismatch.isNull()) {
             std::string explain{
@@ -678,11 +696,13 @@ static void CheckRequiredOrDefault(const RPCArg& param)
     void force_semicolon(ret_type)
 
 // Optional arg (without default). Can also be called on required args, if needed.
+TMPL_INST(nullptr, const UniValue*, maybe_arg;);
 TMPL_INST(nullptr, std::optional<double>, maybe_arg ? std::optional{maybe_arg->get_real()} : std::nullopt;);
 TMPL_INST(nullptr, std::optional<bool>, maybe_arg ? std::optional{maybe_arg->get_bool()} : std::nullopt;);
 TMPL_INST(nullptr, const std::string*, maybe_arg ? &maybe_arg->get_str() : nullptr;);
 
 // Required arg or optional arg with default value.
+TMPL_INST(CheckRequiredOrDefault, const UniValue&, *CHECK_NONFATAL(maybe_arg););
 TMPL_INST(CheckRequiredOrDefault, bool, CHECK_NONFATAL(maybe_arg)->get_bool(););
 TMPL_INST(CheckRequiredOrDefault, int, CHECK_NONFATAL(maybe_arg)->getInt<int>(););
 TMPL_INST(CheckRequiredOrDefault, uint64_t, CHECK_NONFATAL(maybe_arg)->getInt<uint64_t>(););
@@ -713,6 +733,16 @@ std::vector<std::pair<std::string, bool>> RPCHelpMan::GetArgNames() const
         ret.emplace_back(arg.m_names, /*named_only=*/false);
     }
     return ret;
+}
+
+size_t RPCHelpMan::GetParamIndex(std::string_view key) const
+{
+    auto it{std::find_if(
+        m_args.begin(), m_args.end(), [&key](const auto& arg) { return arg.GetName() == key;}
+    )};
+
+    CHECK_NONFATAL(it != m_args.end());  // TODO: ideally this is checked at compile time
+    return std::distance(m_args.begin(), it);
 }
 
 std::string RPCHelpMan::ToString() const
@@ -788,7 +818,7 @@ UniValue RPCHelpMan::GetArgMap() const
         map.push_back(arg_name);
         map.push_back(type == RPCArg::Type::STR ||
                       type == RPCArg::Type::STR_HEX);
-        arr.push_back(map);
+        arr.push_back(std::move(map));
     };
 
     for (int i{0}; i < int(m_args.size()); ++i) {
@@ -940,6 +970,7 @@ std::string RPCArg::ToDescriptionString(bool is_named_arg) const
     return ret;
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 void RPCResult::ToSections(Sections& sections, const OuterType outer_type, const int current_indent) const
 {
     // Indentation
@@ -1073,6 +1104,7 @@ static std::optional<UniValue::VType> ExpectedType(RPCResult::Type type)
     NONFATAL_UNREACHABLE();
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 UniValue RPCResult::MatchesType(const UniValue& result) const
 {
     if (m_skip_type_check) {
@@ -1092,7 +1124,7 @@ UniValue RPCResult::MatchesType(const UniValue& result) const
             // If there are more results than documented, reuse the last doc_inner.
             const RPCResult& doc_inner{m_inner.at(std::min(m_inner.size() - 1, i))};
             UniValue match{doc_inner.MatchesType(result.get_array()[i])};
-            if (!match.isTrue()) errors.pushKV(strprintf("%d", i), match);
+            if (!match.isTrue()) errors.pushKV(strprintf("%d", i), std::move(match));
         }
         if (errors.empty()) return true; // empty result array is valid
         return errors;
@@ -1105,7 +1137,7 @@ UniValue RPCResult::MatchesType(const UniValue& result) const
             const RPCResult& doc_inner{m_inner.at(0)}; // Assume all types are the same, randomly pick the first
             for (size_t i{0}; i < result.get_obj().size(); ++i) {
                 UniValue match{doc_inner.MatchesType(result.get_obj()[i])};
-                if (!match.isTrue()) errors.pushKV(result.getKeys()[i], match);
+                if (!match.isTrue()) errors.pushKV(result.getKeys()[i], std::move(match));
             }
             if (errors.empty()) return true; // empty result obj is valid
             return errors;
@@ -1131,7 +1163,7 @@ UniValue RPCResult::MatchesType(const UniValue& result) const
                 continue;
             }
             UniValue match{doc_entry.MatchesType(result_it->second)};
-            if (!match.isTrue()) errors.pushKV(doc_entry.m_key_name, match);
+            if (!match.isTrue()) errors.pushKV(doc_entry.m_key_name, std::move(match));
         }
         if (errors.empty()) return true;
         return errors;
@@ -1151,6 +1183,7 @@ void RPCResult::CheckInnerDoc() const
     CHECK_NONFATAL(inner_needed != m_inner.empty());
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 std::string RPCArg::ToStringObj(const bool oneline) const
 {
     std::string res;
@@ -1189,6 +1222,7 @@ std::string RPCArg::ToStringObj(const bool oneline) const
     NONFATAL_UNREACHABLE();
 }
 
+// NOLINTNEXTLINE(misc-no-recursion)
 std::string RPCArg::ToString(const bool oneline) const
 {
     if (oneline && !m_opts.oneline_description.empty()) {
@@ -1215,6 +1249,7 @@ std::string RPCArg::ToString(const bool oneline) const
     case Type::OBJ:
     case Type::OBJ_NAMED_PARAMS:
     case Type::OBJ_USER_KEYS: {
+        // NOLINTNEXTLINE(misc-no-recursion)
         const std::string res = Join(m_inner, ",", [&](const RPCArg& i) { return i.ToStringObj(oneline); });
         if (m_type == Type::OBJ) {
             return "{" + res + "}";
@@ -1325,4 +1360,18 @@ void PushWarnings(const std::vector<bilingual_str>& warnings, UniValue& obj)
 {
     if (warnings.empty()) return;
     obj.pushKV("warnings", BilingualStringsToUniValue(warnings));
+}
+
+UniValue GetNodeWarnings(bool use_deprecated)
+{
+    if (use_deprecated) {
+        const auto all_warnings{GetWarnings()};
+        return all_warnings.empty() ? "" : all_warnings.back().original;
+    }
+
+    UniValue warnings{UniValue::VARR};
+    for (auto&& warning : GetWarnings()) {
+        warnings.push_back(std::move(warning.original));
+    }
+    return warnings;
 }

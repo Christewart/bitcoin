@@ -32,6 +32,7 @@ from test_framework.messages import (
     CTxIn,
     CTxInWitness,
     CTxOut,
+    hash256,
 )
 from test_framework.script import (
     CScript,
@@ -65,7 +66,10 @@ class MiniWalletMode(Enum):
     However, if the transactions need to be modified by the user (e.g. prepending
     scriptSig for testing opcodes that are activated by a soft-fork), or the txs
     should contain an actual signature, the raw modes RAW_OP_TRUE and RAW_P2PK
-    can be useful. Summary of modes:
+    can be useful. In order to avoid mixing of UTXOs between different MiniWallet
+    instances, a tag name can be passed to the default mode, to create different
+    output scripts. Note that the UTXOs from the pre-generated test chain can
+    only be spent if no tag is passed. Summary of modes:
 
                     |      output       |           |  tx is   | can modify |  needs
          mode       |    description    |  address  | standard | scriptSig  | signing
@@ -80,22 +84,25 @@ class MiniWalletMode(Enum):
 
 
 class MiniWallet:
-    def __init__(self, test_node, *, mode=MiniWalletMode.ADDRESS_OP_TRUE):
+    def __init__(self, test_node, *, mode=MiniWalletMode.ADDRESS_OP_TRUE, tag_name=None):
         self._test_node = test_node
         self._utxos = []
         self._mode = mode
 
         assert isinstance(mode, MiniWalletMode)
         if mode == MiniWalletMode.RAW_OP_TRUE:
+            assert tag_name is None
             self._scriptPubKey = bytes(CScript([OP_TRUE]))
         elif mode == MiniWalletMode.RAW_P2PK:
             # use simple deterministic private key (k=1)
+            assert tag_name is None
             self._priv_key = ECKey()
             self._priv_key.set((1).to_bytes(32, 'big'), True)
             pub_key = self._priv_key.get_pubkey()
             self._scriptPubKey = key_to_p2pk_script(pub_key.get_bytes())
         elif mode == MiniWalletMode.ADDRESS_OP_TRUE:
-            self._address, self._internal_key = create_deterministic_address_bcrt1_p2tr_op_true()
+            internal_key = None if tag_name is None else hash256(tag_name.encode())
+            self._address, self._internal_key = create_deterministic_address_bcrt1_p2tr_op_true(internal_key)
             self._scriptPubKey = address_to_scriptpubkey(self._address)
 
         # When the pre-mined test framework chain is used, it contains coinbase
@@ -286,11 +293,12 @@ class MiniWallet:
         utxos_to_spend: Optional[list[dict]] = None,
         num_outputs=1,
         amount_per_output=0,
+        version=2,
         locktime=0,
         sequence=0,
         fee_per_output=1000,
         target_weight=0,
-        confirmed_only=False
+        confirmed_only=False,
     ):
         """
         Create and return a transaction that spends the given UTXOs and creates a
@@ -313,6 +321,7 @@ class MiniWallet:
         tx = CTransaction()
         tx.vin = [CTxIn(COutPoint(int(utxo_to_spend['txid'], 16), utxo_to_spend['vout']), nSequence=seq) for utxo_to_spend, seq in zip(utxos_to_spend, sequence)]
         tx.vout = [CTxOut(amount_per_output, bytearray(self._scriptPubKey)) for _ in range(num_outputs)]
+        tx.nVersion = version
         tx.nLockTime = locktime
 
         self.sign_tx(tx)
@@ -337,14 +346,15 @@ class MiniWallet:
             "tx": tx,
         }
 
-    def create_self_transfer(self, *,
+    def create_self_transfer(
+            self,
+            *,
             fee_rate=Decimal("0.003"),
             fee=Decimal("0"),
             utxo_to_spend=None,
-            locktime=0,
-            sequence=0,
             target_weight=0,
-            confirmed_only=False
+            confirmed_only=False,
+            **kwargs,
     ):
         """Create and return a tx with the specified fee. If fee is 0, use fee_rate, where the resulting fee may be exact or at most one satoshi higher than needed."""
         utxo_to_spend = utxo_to_spend or self.get_utxo(confirmed_only=confirmed_only)
@@ -360,7 +370,12 @@ class MiniWallet:
         send_value = utxo_to_spend["value"] - (fee or (fee_rate * vsize / 1000))
 
         # create tx
-        tx = self.create_self_transfer_multi(utxos_to_spend=[utxo_to_spend], locktime=locktime, sequence=sequence, amount_per_output=int(COIN * send_value), target_weight=target_weight)
+        tx = self.create_self_transfer_multi(
+            utxos_to_spend=[utxo_to_spend],
+            amount_per_output=int(COIN * send_value),
+            target_weight=target_weight,
+            **kwargs,
+        )
         if not target_weight:
             assert_equal(tx["tx"].get_vsize(), vsize)
         tx["new_utxo"] = tx.pop("new_utxos")[0]
@@ -416,7 +431,7 @@ def getnewdestination(address_type='bech32m'):
         scriptpubkey = key_to_p2wpkh_script(pubkey)
         address = key_to_p2wpkh(pubkey)
     elif address_type == 'bech32m':
-        tap = taproot_construct(compute_xonly_pubkey(key.get_bytes())[0])
+        tap = taproot_construct(compute_xonly_pubkey(key.get_bytes())[0], LEAF_VERSION_TAPSCRIPT)
         pubkey = tap.output_pubkey
         scriptpubkey = tap.scriptPubKey
         address = output_key_to_p2tr(pubkey)

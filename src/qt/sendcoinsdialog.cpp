@@ -2,9 +2,7 @@
 // Distributed under the MIT software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#if defined(HAVE_CONFIG_H)
-#include <config/bitcoin-config.h>
-#endif
+#include <config/bitcoin-config.h> // IWYU pragma: keep
 
 #include <qt/sendcoinsdialog.h>
 #include <qt/forms/ui_sendcoinsdialog.h>
@@ -406,6 +404,7 @@ void SendCoinsDialog::presentPSBT(PartiallySignedTransaction& psbtx)
     msgBox.setInformativeText(tr("The PSBT has been copied to the clipboard. You can also save it."));
     msgBox.setStandardButtons(QMessageBox::Save | QMessageBox::Discard);
     msgBox.setDefaultButton(QMessageBox::Discard);
+    msgBox.setObjectName("psbt_copied_message");
     switch (msgBox.exec()) {
     case QMessageBox::Save: {
         QString selectedFilter;

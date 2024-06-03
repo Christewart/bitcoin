@@ -100,7 +100,7 @@ public:
     {
         if (size_t(pend - pbegin) != std::tuple_size_v<KeyType>) {
             ClearKeyData();
-        } else if (Check(&pbegin[0])) {
+        } else if (Check(UCharCast(&pbegin[0]))) {
             MakeKeyData();
             memcpy(keydata->data(), (unsigned char*)&pbegin[0], keydata->size());
             fCompressed = fCompressedIn;
@@ -112,8 +112,8 @@ public:
     //! Simple read-only vector-like interface.
     unsigned int size() const { return keydata ? keydata->size() : 0; }
     const std::byte* data() const { return keydata ? reinterpret_cast<const std::byte*>(keydata->data()) : nullptr; }
-    const unsigned char* begin() const { return keydata ? keydata->data() : nullptr; }
-    const unsigned char* end() const { return begin() + size(); }
+    const std::byte* begin() const { return data(); }
+    const std::byte* end() const { return data() + size(); }
 
     //! Check whether this private key is valid.
     bool IsValid() const { return !!keydata; }
@@ -223,6 +223,12 @@ struct CExtKey {
             a.key == b.key;
     }
 
+    CExtKey() = default;
+    CExtKey(const CExtPubKey& xpub, const CKey& key_in) : nDepth(xpub.nDepth), nChild(xpub.nChild), chaincode(xpub.chaincode), key(key_in)
+    {
+        std::copy(xpub.vchFingerprint, xpub.vchFingerprint + sizeof(xpub.vchFingerprint), vchFingerprint);
+    }
+
     void Encode(unsigned char code[BIP32_EXTKEY_SIZE]) const;
     void Decode(const unsigned char code[BIP32_EXTKEY_SIZE]);
     [[nodiscard]] bool Derive(CExtKey& out, unsigned int nChild) const;
@@ -230,13 +236,21 @@ struct CExtKey {
     void SetSeed(Span<const std::byte> seed);
 };
 
-/** Initialize the elliptic curve support. May not be called twice without calling ECC_Stop first. */
-void ECC_Start();
-
-/** Deinitialize the elliptic curve support. No-op if ECC_Start wasn't called first. */
-void ECC_Stop();
-
 /** Check that required EC support is available at runtime. */
 bool ECC_InitSanityCheck();
+
+/**
+ * RAII class initializing and deinitializing global state for elliptic curve support.
+ * Only one instance may be initialized at a time.
+ *
+ * In the future global ECC state could be removed, and this class could contain
+ * state and be passed as an argument to ECC key functions.
+ */
+class ECC_Context
+{
+public:
+    ECC_Context();
+    ~ECC_Context();
+};
 
 #endif // BITCOIN_KEY_H

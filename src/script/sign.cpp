@@ -12,6 +12,7 @@
 #include <script/keyorigin.h>
 #include <script/miniscript.h>
 #include <script/script.h>
+#include <script/sigversion.h>
 #include <script/signingprovider.h>
 #include <script/solver.h>
 #include <uint256.h>
@@ -295,7 +296,7 @@ struct TapSatisfier: Satisfier<XOnlyPubKey> {
     //! Conversion from a raw xonly public key.
     template <typename I>
     std::optional<XOnlyPubKey> FromPKBytes(I first, I last) const {
-        CHECK_NONFATAL(last - first == 32);
+        if (last - first != 32) return {};
         XOnlyPubKey pubkey;
         std::copy(first, last, pubkey.begin());
         return pubkey;

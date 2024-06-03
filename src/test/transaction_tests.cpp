@@ -19,6 +19,7 @@
 #include <script/script_error.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
+#include <script/sigversion.h>
 #include <script/solver.h>
 #include <streams.h>
 #include <test/util/json.h>
@@ -786,7 +787,7 @@ BOOST_AUTO_TEST_CASE(test_IsStandard)
     t.nVersion = 0;
     CheckIsNotStandard(t, "version");
 
-    t.nVersion = 3;
+    t.nVersion = TX_MAX_STANDARD_VERSION + 1;
     CheckIsNotStandard(t, "version");
 
     // Allowed nVersion
