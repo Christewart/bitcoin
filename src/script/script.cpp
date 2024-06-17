@@ -7,6 +7,7 @@
 
 #include <crypto/common.h>
 #include <hash.h>
+#include <script/sigversion.h>
 #include <uint256.h>
 #include <util/hash_type.h>
 #include <util/strencodings.h>

@@ -30,6 +30,7 @@
 #include <script/script.h>
 #include <script/sign.h>
 #include <script/signingprovider.h>
+#include <script/sigversion.h>
 #include <script/solver.h>
 #include <uint256.h>
 #include <undo.h>
