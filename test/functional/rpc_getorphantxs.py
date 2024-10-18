@@ -133,11 +133,14 @@ class GetOrphanTxsTest(BitcoinTestFramework):
 
         peer_1 = node.add_p2p_connection(P2PInterface())
 
+        init_orphans = len(node.getorphantxs())
         self.log.info("Filling up orphanage with " + str(MAX_ORPHANS) + "(MAX_ORPHANS) orphans")
+        parent_orphans = []
         orphans = []
         for _ in range(MAX_ORPHANS):
             tx_parent_1 = self.wallet.create_self_transfer()
             tx_child_1 = self.wallet.create_self_transfer(utxo_to_spend=tx_parent_1["new_utxo"])
+            parent_orphans.append(tx_parent_1["tx"])
             orphans.append(tx_child_1["tx"])
             peer_1.send_message(msg_tx(tx_child_1["tx"]))
 
@@ -154,6 +157,11 @@ class GetOrphanTxsTest(BitcoinTestFramework):
         peer_1.send_and_ping(msg_tx(tx_child_1["tx"]))
         orphanage = node.getorphantxs()
         assert_equal(len(orphanage), MAX_ORPHANS)
+
+        self.log.info("Clearing the orphanage")
+        for parent_orphan in parent_orphans:
+            peer_1.send_and_ping(msg_tx(parent_orphan))
+        assert_equal(len(node.getorphantxs()),init_orphans)
 
 if __name__ == '__main__':
     GetOrphanTxsTest(__file__).main()
