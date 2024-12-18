@@ -143,6 +143,7 @@ add_executable(test_bitcoin
   validation_tests.cpp
   validationinterface_tests.cpp
   versionbits_tests.cpp
+  worst_block_validation_time.cpp
 )
 
 target_link_libraries(test_bitcoin
