@@ -9,7 +9,7 @@ from test_framework.util import assert_raises_rpc_error
 from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import OP_0, OP_0NOTEQUAL, OP_1ADD, OP_1NEGATE, OP_1SUB, OP_2, OP_3, OP_8, OP_ABS, OP_ADD, OP_CHECKLOCKTIMEVERIFY, OP_DEPTH, OP_DIV, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_MUL, OP_NEGATE, OP_NOT, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_PICK, OP_ROLL, OP_SIZE, OP_SUB, OP_WITHIN, CScript, CScriptNum, CScriptOp, OP_1, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
+from test_framework.script import OP_0, OP_0NOTEQUAL, OP_1ADD, OP_1NEGATE, OP_1SUB, OP_2, OP_3, OP_8, OP_ABS, OP_ADD, OP_CHECKLOCKTIMEVERIFY, OP_DEPTH, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_NEGATE, OP_NOT, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_PICK, OP_ROLL, OP_SIZE, OP_SUB, OP_WITHIN, CScript, CScriptNum, CScriptOp, OP_1, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
 from test_framework.address import output_key_to_p2tr
 
 VALID_SIGHASHES_ECDSA = [
@@ -196,16 +196,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
             scriptWit = [encodeWit(a), encodeWit(b)]
             self.tapscript_satisfy_test(script, inputs = scriptWit, fail=fail)
 
-        def check_mul(a, b, c, fail=None):
-            script = CScript([OP_MUL, encode(c), OP_EQUAL])
-            scriptWit = [encodeWit(a), encodeWit(b)]
-            self.tapscript_satisfy_test(script, inputs = scriptWit, fail=fail)
-
-        def check_div(a, b, q, r, fail=None):
-            script = CScript([OP_DIV, encode(q), OP_EQUALVERIFY, encode(r), OP_EQUAL])
-            scriptWit = [encodeWit(a), encodeWit(b)]
-            self.tapscript_satisfy_test(script, inputs = scriptWit, fail=fail)
-
         def check_le(a, b, res, fail=None):
             self.tapscript_satisfy_test(CScript([OP_LESSTHAN, res, OP_EQUAL]), inputs = [CScriptNum.encode(CScriptNum(a)), CScriptNum.encode(CScriptNum(b))], fail=fail)
 
@@ -244,26 +234,6 @@ class Arithmetic64bitTest(BitcoinTestFramework):
         check_sub(max, 4, 2**63 - 5)
         check_sub(-5, max, -5 - max)
         check_sub(max, -4, max + 4)
-
-        # Multiplication
-        check_mul(5, 6, 30)
-        check_mul(-5, 6, -30)
-        check_mul(-5, 0, 0)
-        check_mul(-5, -6, 30)
-        check_mul(14231, -123213, -14231 * 123213)
-        check_mul(2**32, 2**31 - 1, 2**63 - 2**32)
-        check_mul(2**32, 2**31, 2**63)
-        check_mul(-2**32, 2**31, -2**63)# no  overflow
-        check_mul(-2**32, 2**32, -2**64)
-
-        # Division
-        check_div(5, 6, 0, 5)
-        check_div(4, 2, 2, 0)
-        check_div(-5, 6, -1, 1) # r must be in 0<=r<a
-        check_div(5, -6, 0, 5) # r must be in 0<=r<a
-        check_div(-5, 0, 0, 0, fail="Arithmetic opcode error") # only fails if b = 0
-        check_div(6213123213513, 621, 6213123213513//621, 6213123213513 % 621)
-        check_div(2**62, 2**31, 2**31, 0)
 
         self.log.info("Done checking arithmetic op codes, checking comparison op codes...")
         # Less than test

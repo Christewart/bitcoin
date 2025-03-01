@@ -459,6 +459,8 @@ static bool IsOpCodeDisabled(const opcodetype& opcode, const SigVersion& sigVers
                 opcode == OP_XOR ||
                 opcode == OP_2MUL ||
                 opcode == OP_2DIV ||
+                opcode == OP_MUL ||
+                opcode == OP_DIV ||
                 opcode == OP_MOD ||
                 opcode == OP_LSHIFT ||
                 opcode == OP_RSHIFT)
@@ -997,8 +999,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_ADD:
                 case OP_SUB:
-                case OP_MUL:
-                case OP_DIV:
                 case OP_BOOLAND:
                 case OP_BOOLOR:
                 case OP_NUMEQUAL:
@@ -1022,31 +1022,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     case OP_ADD:
                         bn = bn1 + bn2;
                         break;
-
                     case OP_SUB:
                         bn = bn1 - bn2;
                         break;
-                    case OP_MUL:
-                        bn = bn1 * bn2;
-                        break;
-                    case OP_DIV: {
-                        const __int128_t a = bn1.GetInt128();
-                        const __int128_t b = bn2.GetInt128();
-                        if (b == 0) return set_error(serror,SCRIPT_ERR_ARITHMETIC64);
-                        __int128_t r = a % b;
-                        __int128_t q = a / b;
-
-                        if (r < 0 && b > 0) { r+=b; q-=1;}
-                        else if (r < 0 && b > 0) { r -= b; q+=1; }
-                        //have to pop the stack here for OP_DIV
-                        //as we are pushing two results onto the stack
-                        //quotient and remainder
-                        popstack(stack);
-                        popstack(stack);
-                        bn = CScriptNum(q);
-                        stack.push_back(CScriptNum(r).getvch());
-                        break;
-                    }
                     case OP_BOOLAND:             bn = (bn1 != bnZero && bn2 != bnZero); break;
                     case OP_BOOLOR:              bn = (bn1 != bnZero || bn2 != bnZero); break;
                     case OP_NUMEQUAL:            bn = (bn1 == bn2); break;
