@@ -17,7 +17,7 @@
 #include <pow.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
-#include <script/interpreter.h>
+#include <script/sigversion.h>
 #include <script/signingprovider.h>
 #include <script/solver.h>
 #include <tinyformat.h>

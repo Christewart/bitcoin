@@ -6,7 +6,7 @@
 #define BITCOIN_WALLET_FEEBUMPER_H
 
 #include <consensus/consensus.h>
-#include <script/interpreter.h>
+#include <script/sigversion.h>
 #include <primitives/transaction.h>
 
 class uint256;
@@ -92,6 +92,7 @@ public:
             break;
         case SigVersion::TAPROOT:
         case SigVersion::TAPSCRIPT:
+        case SigVersion::TAPSCRIPT_64BIT:
             assert(false);
         }
     }
