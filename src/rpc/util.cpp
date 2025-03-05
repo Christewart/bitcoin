@@ -11,6 +11,7 @@
 #include <outputtype.h>
 #include <rpc/util.h>
 #include <script/descriptor.h>
+#include <script/sigversion.h>
 #include <script/signingprovider.h>
 #include <script/solver.h>
 #include <tinyformat.h>

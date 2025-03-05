@@ -13,6 +13,7 @@
 #include <script/interpreter.h>
 #include <script/keyorigin.h>
 #include <script/signingprovider.h>
+#include <script/sigversion.h>
 #include <uint256.h>
 
 class CKey;
