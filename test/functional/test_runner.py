@@ -293,6 +293,7 @@ BASE_SCRIPTS = [
     'tool_utxo_to_sqlite.py',
     'feature_versionbits_warning.py',
     'feature_blocksxor.py',
+    'feature_64bit_arithmetic_opcodes.py',
     'rpc_preciousblock.py',
     'wallet_importprunedfunds.py --legacy-wallet',
     'wallet_importprunedfunds.py --descriptors',
