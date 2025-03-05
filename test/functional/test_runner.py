@@ -51,23 +51,23 @@ except UnicodeDecodeError:
     CROSS = "x "
     CIRCLE = "o "
 
-if platform.system() == 'Windows':
-    import ctypes
-    kernel32 = ctypes.windll.kernel32  # type: ignore
-    ENABLE_VIRTUAL_TERMINAL_PROCESSING = 4
-    STD_OUTPUT_HANDLE = -11
-    STD_ERROR_HANDLE = -12
-    # Enable ascii color control to stdout
-    stdout = kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
-    stdout_mode = ctypes.c_int32()
-    kernel32.GetConsoleMode(stdout, ctypes.byref(stdout_mode))
-    kernel32.SetConsoleMode(stdout, stdout_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-    # Enable ascii color control to stderr
-    stderr = kernel32.GetStdHandle(STD_ERROR_HANDLE)
-    stderr_mode = ctypes.c_int32()
-    kernel32.GetConsoleMode(stderr, ctypes.byref(stderr_mode))
-    kernel32.SetConsoleMode(stderr, stderr_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
-else:
+if platform.system() != 'Windows' or sys.getwindowsversion() >= (10, 0, 14393): #type:ignore
+    if platform.system() == 'Windows':
+        import ctypes
+        kernel32 = ctypes.windll.kernel32  # type: ignore
+        ENABLE_VIRTUAL_TERMINAL_PROCESSING = 4
+        STD_OUTPUT_HANDLE = -11
+        STD_ERROR_HANDLE = -12
+        # Enable ascii color control to stdout
+        stdout = kernel32.GetStdHandle(STD_OUTPUT_HANDLE)
+        stdout_mode = ctypes.c_int32()
+        kernel32.GetConsoleMode(stdout, ctypes.byref(stdout_mode))
+        kernel32.SetConsoleMode(stdout, stdout_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
+        # Enable ascii color control to stderr
+        stderr = kernel32.GetStdHandle(STD_ERROR_HANDLE)
+        stderr_mode = ctypes.c_int32()
+        kernel32.GetConsoleMode(stderr, ctypes.byref(stderr_mode))
+        kernel32.SetConsoleMode(stderr, stderr_mode.value | ENABLE_VIRTUAL_TERMINAL_PROCESSING)
     # primitive formatting on supported
     # terminal via ANSI escape sequences:
     DEFAULT = ('\033[0m', '\033[0m')
@@ -96,10 +96,6 @@ BASE_SCRIPTS = [
     'feature_fee_estimation.py',
     'feature_taproot.py',
     'feature_block.py',
-    'mempool_ephemeral_dust.py',
-    'wallet_conflicts.py --legacy-wallet',
-    'wallet_conflicts.py --descriptors',
-    'p2p_opportunistic_1p1c.py',
     'p2p_node_network_limited.py --v1transport',
     'p2p_node_network_limited.py --v2transport',
     # vv Tests less than 2m vv
@@ -150,7 +146,6 @@ BASE_SCRIPTS = [
     'p2p_feefilter.py',
     'feature_csv_activation.py',
     'p2p_sendheaders.py',
-    'feature_config_args.py',
     'wallet_listtransactions.py --legacy-wallet',
     'wallet_listtransactions.py --descriptors',
     'wallet_miniscript.py --descriptors',
@@ -204,12 +199,14 @@ BASE_SCRIPTS = [
     'rpc_getchaintips.py',
     'rpc_misc.py',
     'p2p_1p1c_network.py',
+    'p2p_opportunistic_1p1c.py',
     'interface_rest.py',
     'mempool_spend_coinbase.py',
     'wallet_avoid_mixing_output_types.py --descriptors',
     'mempool_reorg.py',
     'p2p_block_sync.py --v1transport',
     'p2p_block_sync.py --v2transport',
+    'feature_64bit_arithmetic_opcodes.py',
     'wallet_createwallet.py --legacy-wallet',
     'wallet_createwallet.py --usecli',
     'wallet_createwallet.py --descriptors',
@@ -218,6 +215,8 @@ BASE_SCRIPTS = [
     'wallet_reindex.py --legacy-wallet',
     'wallet_reindex.py --descriptors',
     'wallet_reorgsrestore.py',
+    'wallet_conflicts.py --legacy-wallet',
+    'wallet_conflicts.py --descriptors',
     'interface_http.py',
     'interface_rpc.py',
     'interface_usdt_coinselection.py',
@@ -318,7 +317,6 @@ BASE_SCRIPTS = [
     'wallet_upgradewallet.py --legacy-wallet',
     'wallet_crosschain.py',
     'mining_basic.py',
-    'mining_mainnet.py',
     'feature_signet.py',
     'p2p_mutated_blocks.py',
     'wallet_implicitsegwit.py --legacy-wallet',
@@ -344,7 +342,6 @@ BASE_SCRIPTS = [
     'feature_minchainwork.py',
     'rpc_estimatefee.py',
     'rpc_getblockstats.py',
-    'feature_port.py',
     'feature_bind_port_externalip.py',
     'wallet_create_tx.py --legacy-wallet',
     'wallet_send.py --legacy-wallet',
@@ -383,7 +380,6 @@ BASE_SCRIPTS = [
     'rpc_deriveaddresses.py --usecli',
     'p2p_ping.py',
     'p2p_tx_privacy.py',
-    'rpc_getdescriptoractivity.py',
     'rpc_scanblocks.py',
     'p2p_sendtxrcncl.py',
     'rpc_scantxoutset.py',
@@ -400,6 +396,7 @@ BASE_SCRIPTS = [
     'feature_remove_pruned_files_on_startup.py',
     'p2p_i2p_ports.py',
     'p2p_i2p_sessions.py',
+    'feature_config_args.py',
     'feature_presegwit_node_upgrade.py',
     'feature_settings.py',
     'rpc_getdescriptorinfo.py',
