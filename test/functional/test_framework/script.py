@@ -30,6 +30,7 @@ LOCKTIME_THRESHOLD = 500000000
 ANNEX_TAG = 0x50
 
 LEAF_VERSION_TAPSCRIPT = 0xc0
+LEAF_VERSION_TAPSCRIPT_64BIT = 0x66
 
 def hash160(s):
     return ripemd160(sha256(s))
@@ -66,11 +67,13 @@ class CScriptOp(int):
     @staticmethod
     def encode_op_n(n):
         """Encode a small integer op, returning an opcode"""
-        if not (0 <= n <= 16):
+        if not (-1 <= n <= 16):
             raise ValueError('Integer must be in range 0 <= n <= 16, got %d' % n)
 
         if n == 0:
             return OP_0
+        if n == -1:
+            return OP_1NEGATE
         else:
             return CScriptOp(OP_1 + n - 1)
 
@@ -866,16 +869,17 @@ def taproot_tree_helper(scripts, leaf_version):
         if isinstance(script, list):
             return taproot_tree_helper(script, leaf_version)
         assert isinstance(script, tuple)
+        version = leaf_version
         name = script[0]
         code = script[1]
         if len(script) == 3:
-            leaf_version = script[2]
-        assert leaf_version & 1 == 0
+            version = script[2]
+        assert version & 1 == 0
         assert isinstance(code, bytes)
-        h = TaggedHash("TapLeaf", bytes([leaf_version]) + ser_string(code))
+        h = TaggedHash("TapLeaf", bytes([version]) + ser_string(code))
         if name is None:
             return ([], h)
-        return ([(name, leaf_version, code, bytes(), h)], h)
+        return ([(name, version, code, bytes(), h)], h)
     elif len(scripts) == 2 and callable(scripts[1]):
         # Two entries, and the right one is a function
         left, left_h = taproot_tree_helper(scripts[0:1], leaf_version)
@@ -926,7 +930,7 @@ def taproot_construct(pubkey, leaf_version, scripts=None, treat_internal_as_infi
     if scripts is None:
         scripts = []
 
-    ret, h = taproot_tree_helper(scripts, leaf_version)
+    ret, h = taproot_tree_helper(scripts,leaf_version)
     tweak = TaggedHash("TapTweak", pubkey + h)
     if treat_internal_as_infinity:
         tweaked, negated = compute_xonly_pubkey(tweak)
@@ -935,8 +939,11 @@ def taproot_construct(pubkey, leaf_version, scripts=None, treat_internal_as_infi
     leaves = dict((name, TaprootLeafInfo(script, version, merklebranch, leaf)) for name, version, script, merklebranch, leaf in ret)
     return TaprootInfo(CScript([OP_1, tweaked]), pubkey, negated + 0, tweak, leaves, h, tweaked)
 
+
+
+
 def is_op_success(o, sig_version):
-    if (sig_version == LEAF_VERSION_TAPSCRIPT):
+    if (sig_version == LEAF_VERSION_TAPSCRIPT or sig_version == LEAF_VERSION_TAPSCRIPT_64BIT):
         return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
     else:
         assert False

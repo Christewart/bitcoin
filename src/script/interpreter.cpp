@@ -254,6 +254,20 @@ int FindAndDelete(CScript& script, const CScript& b)
     return nFound;
 }
 
+CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const SigVersion& sigversion)
+{
+    switch (sigversion)
+    {
+        case SigVersion::BASE:
+        case SigVersion::WITNESS_V0:
+        case SigVersion::TAPROOT:
+        case SigVersion::TAPSCRIPT:
+            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/4);
+        case SigVersion::TAPSCRIPT_64BIT:
+            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/8);
+    }
+}
+
 namespace {
 /** A data type to abstract out the condition stack during script execution.
  *
@@ -396,12 +410,46 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
     case SigVersion::WITNESS_V0:
         return EvalChecksigPreTapscript(sig, pubkey, pbegincodehash, pend, flags, checker, sigversion, serror, success);
     case SigVersion::TAPSCRIPT:
+    case SigVersion::TAPSCRIPT_64BIT:
         return EvalChecksigTapscript(sig, pubkey, execdata, flags, checker, sigversion, serror, success);
     case SigVersion::TAPROOT:
         // Key path spending in Taproot has no script, so this is unreachable.
         break;
     }
     assert(false);
+}
+
+static bool IsOpCodeDisabled(const opcodetype& opcode, const SigVersion& sigVersion, ScriptError* serror)
+{
+    switch(sigVersion)
+    {
+        case SigVersion::BASE:
+        case SigVersion::WITNESS_V0:
+        case SigVersion::TAPROOT:
+        case SigVersion::TAPSCRIPT:
+        case SigVersion::TAPSCRIPT_64BIT:
+        {
+            if (opcode == OP_CAT ||
+                opcode == OP_SUBSTR ||
+                opcode == OP_LEFT ||
+                opcode == OP_RIGHT ||
+                opcode == OP_INVERT ||
+                opcode == OP_AND ||
+                opcode == OP_OR ||
+                opcode == OP_XOR ||
+                opcode == OP_2MUL ||
+                opcode == OP_2DIV ||
+                opcode == OP_MUL ||
+                opcode == OP_DIV ||
+                opcode == OP_MOD ||
+                opcode == OP_LSHIFT ||
+                opcode == OP_RSHIFT)
+                return !set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
+            break;
+        }
+    }
+    //should we default to disabled is false?
+    return false;
 }
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror)
@@ -415,7 +463,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
     static const valtype vchTrue(1, 1);
 
     // sigversion cannot be TAPROOT here, as it admits no script execution.
-    assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPSCRIPT);
+    assert(sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPSCRIPT || sigversion == SigVersion::TAPSCRIPT_64BIT);
 
     CScript::const_iterator pc = script.begin();
     CScript::const_iterator pend = script.end();
@@ -454,22 +502,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 }
             }
 
-            if (opcode == OP_CAT ||
-                opcode == OP_SUBSTR ||
-                opcode == OP_LEFT ||
-                opcode == OP_RIGHT ||
-                opcode == OP_INVERT ||
-                opcode == OP_AND ||
-                opcode == OP_OR ||
-                opcode == OP_XOR ||
-                opcode == OP_2MUL ||
-                opcode == OP_2DIV ||
-                opcode == OP_MUL ||
-                opcode == OP_DIV ||
-                opcode == OP_MOD ||
-                opcode == OP_LSHIFT ||
-                opcode == OP_RSHIFT)
-                return set_error(serror, SCRIPT_ERR_DISABLED_OPCODE); // Disabled opcodes (CVE-2010-5137).
+            if (IsOpCodeDisabled(opcode,sigversion,serror))
+                return false;
 
             // With SCRIPT_VERIFY_CONST_SCRIPTCODE, OP_CODESEPARATOR in non-segwit script is rejected even in an unexecuted branch
             if (opcode == OP_CODESEPARATOR && sigversion == SigVersion::BASE && (flags & SCRIPT_VERIFY_CONST_SCRIPTCODE))
@@ -926,7 +960,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // (in -- out)
                     if (stack.size() < 1)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn(stacktop(-1), fRequireMinimal);
+
+                    CScriptNum bn = GetCScriptNum(stacktop(-1), fRequireMinimal, sigversion);
                     switch (opcode)
                     {
                     case OP_1ADD:       bn += bnOne; break;
@@ -959,19 +994,17 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // (x1 x2 -- out)
                     if (stack.size() < 2)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    CScriptNum bn1(stacktop(-2), fRequireMinimal);
-                    CScriptNum bn2(stacktop(-1), fRequireMinimal);
+                    CScriptNum bn1 = GetCScriptNum(stacktop(-2), fRequireMinimal, sigversion);
+                    CScriptNum bn2 = GetCScriptNum(stacktop(-1), fRequireMinimal, sigversion);
                     CScriptNum bn(0);
                     switch (opcode)
                     {
                     case OP_ADD:
                         bn = bn1 + bn2;
                         break;
-
                     case OP_SUB:
                         bn = bn1 - bn2;
                         break;
-
                     case OP_BOOLAND:             bn = (bn1 != bnZero && bn2 != bnZero); break;
                     case OP_BOOLOR:              bn = (bn1 != bnZero || bn2 != bnZero); break;
                     case OP_NUMEQUAL:            bn = (bn1 == bn2); break;
@@ -988,7 +1021,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(bn.getvch());
-
                     if (opcode == OP_NUMEQUALVERIFY)
                     {
                         if (CastToBool(stacktop(-1)))
@@ -1938,6 +1970,13 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
                 execdata.m_validation_weight_left_init = true;
                 return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT, checker, execdata, serror);
+            }
+            if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT_64BIT) {
+                // Tapscript (leaf version 0x66)
+                exec_script = CScript(script.begin(), script.end());
+                execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
+                execdata.m_validation_weight_left_init = true;
+                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT_64BIT, checker, execdata, serror);
             }
             if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
                 return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
