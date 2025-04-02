@@ -125,6 +125,7 @@ BASE_SCRIPTS = [
     'p2p_tx_download.py',
     'wallet_avoidreuse.py --legacy-wallet',
     'wallet_avoidreuse.py --descriptors',
+    'feature_arithmetic_opcodes.py'
     'feature_abortnode.py',
     'wallet_address_types.py --legacy-wallet',
     'wallet_address_types.py --descriptors',
