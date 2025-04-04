@@ -197,4 +197,20 @@ BOOST_AUTO_TEST_CASE(operators)
     }
 }
 
+BOOST_AUTO_TEST_CASE(boundaries) 
+{
+    CScriptNum min = CScriptNum((int64_t)-1 + std::numeric_limits<int32_t>::min());
+    CScriptNum max = CScriptNum(std::numeric_limits<int32_t>::max());
+    //BOOST_CHECK(min == std::numeric_limits<int32_t>::min());
+    BOOST_CHECK((CScriptNum(-1) += min).getint() == (((int64_t)std::numeric_limits<int32_t>::min()) - 2));
+
+    BOOST_CHECK(max == std::numeric_limits<int32_t>::max());
+    BOOST_CHECK((CScriptNum(-1) += max).getint() == std::numeric_limits<int32_t>::max() - 1);
+
+    //operand out of bounds
+    //const CScriptNum OUT_OF_BOUNDS_MIN = CScriptNum(std::numeric_limits<int32_t>::min()-1,/*nMaximumSize*/=5);
+    //const CScriptNum max = CScriptNum(std::numeric_limits<int32_t>::max(), /*nMaximumSize*/=5);
+
+}
+
 BOOST_AUTO_TEST_SUITE_END()
