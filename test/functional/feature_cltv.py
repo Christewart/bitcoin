@@ -108,7 +108,7 @@ class BIP65Test(BitcoinTestFramework):
         self.test_cltv_info(is_active=False)
 
         self.log.info("Mining %d blocks", CLTV_HEIGHT - 2)
-        num_utxos = 13
+        num_utxos = 14
         self.generate(wallet, num_utxos)
         self.generate(self.nodes[0], CLTV_HEIGHT - 2 - num_utxos)
         assert_equal(self.nodes[0].getblockcount(), CLTV_HEIGHT - 2)
@@ -246,7 +246,7 @@ class BIP65Test(BitcoinTestFramework):
         tip = block2.sha256
         # 6 blocks are allowed to have UINT32_MAX block time
         for i in range(6):
-            b = create_block(tip, create_coinbase(CLTV_HEIGHT + num + i + 2), ntime=UINT32_MAX, version=4)
+            b = create_block(tip, create_coinbase(CLTV_HEIGHT + num + i + 2), ntime=UINT32_MAX - 1, version=4)
             b.solve()
             peer.send_and_ping(msg_block(b))
             tip = b.sha256
@@ -256,12 +256,12 @@ class BIP65Test(BitcoinTestFramework):
         # the 7th block means this block is invalid according to BIP113 (median-time-past)
         block3 = create_block(tip, create_coinbase(CLTV_HEIGHT + num + 6 + 2), ntime=UINT32_MAX, version=4)
         # cannot satisfy this locktime, need to be strictly greater than the median-past-time
-        cltv_validate(spendtx,UINT32_MAX)
+        cltv_validate(spendtx,UINT32_MAX - 2)
         block3.vtx.append(spendtx)
         block3.hashMerkleRoot = block3.calc_merkle_root()
         block3.solve()
         peer.send_and_ping(msg_block(block3))
-        self.nodes[0].assert_debug_log("time-too-old, block's timestamp is too early")
+        assert_equal(int(self.nodes[0].getbestblockhash(), 16), block3.sha256)
 
 if __name__ == '__main__':
     BIP65Test(__file__).main()
