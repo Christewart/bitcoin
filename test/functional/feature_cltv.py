@@ -108,7 +108,7 @@ class BIP65Test(BitcoinTestFramework):
         self.test_cltv_info(is_active=False)
 
         self.log.info("Mining %d blocks", CLTV_HEIGHT - 2)
-        num_utxos = 14
+        num_utxos = 12
         self.generate(wallet, num_utxos)
         self.generate(self.nodes[0], CLTV_HEIGHT - 2 - num_utxos)
         assert_equal(self.nodes[0].getblockcount(), CLTV_HEIGHT - 2)
@@ -206,7 +206,7 @@ class BIP65Test(BitcoinTestFramework):
 
         current_time = int(time.time())
         locktime = current_time + (60 * 60) # 1 hour
-
+        spendtx = wallet.create_self_transfer()['tx']
         self.log.info("Test that one block mined with correct wall clock time does not satisfy median-time-past")
         cltv_validate(spendtx,locktime)
         block2 = create_block(tip, create_coinbase(CLTV_HEIGHT + 1), ntime=locktime, version=4)
@@ -227,12 +227,9 @@ class BIP65Test(BitcoinTestFramework):
 
         # now our median-past-time should allow for a transaction with
         # a locktime of +1 hour to be confirmed
-        spendtx = wallet.create_self_transfer()['tx']
         cltv_validate(spendtx,locktime)
-        block2.vtx.append(spendtx)
         block2 = create_block(tip, create_coinbase(CLTV_HEIGHT + num + 1), ntime=locktime + num, version=4)
         block2.vtx.append(spendtx)
-        block2.vtx.append(wallet.create_self_transfer()['tx'])
         block2.hashMerkleRoot = block2.calc_merkle_root()
         block2.solve()
         peer.send_and_ping(msg_block(block2))
@@ -244,7 +241,7 @@ class BIP65Test(BitcoinTestFramework):
         # need to re-add connection as setting mocktime times out the p2p connection
         peer = self.nodes[0].add_p2p_connection(P2PInterface())
         tip = block2.sha256
-        # 6 blocks are allowed to have UINT32_MAX block time
+        # mine 6 blocks with UINT32_MAX -1 ntime
         for i in range(6):
             b = create_block(tip, create_coinbase(CLTV_HEIGHT + num + i + 2), ntime=UINT32_MAX - 1, version=4)
             b.solve()
@@ -253,9 +250,10 @@ class BIP65Test(BitcoinTestFramework):
             assert_equal(int(self.nodes[0].getbestblockhash(), 16), tip)
 
         spendtx = wallet.create_self_transfer()['tx']
-        # the 7th block means this block is invalid according to BIP113 (median-time-past)
+        # create the next block with ntime=UINT32_MAX so we monotonically increase block time
         block3 = create_block(tip, create_coinbase(CLTV_HEIGHT + num + 6 + 2), ntime=UINT32_MAX, version=4)
-        # cannot satisfy this locktime, need to be strictly greater than the median-past-time
+        # the max locktime we can include in this block is UINT32_MAX - 2 due to the fact
+        # our current median-time-past is UINT32_MAX - 1
         cltv_validate(spendtx,UINT32_MAX - 2)
         block3.vtx.append(spendtx)
         block3.hashMerkleRoot = block3.calc_merkle_root()
