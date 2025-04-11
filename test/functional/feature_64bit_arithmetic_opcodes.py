@@ -9,7 +9,7 @@ from test_framework.util import assert_raises_rpc_error
 from test_framework.key import compute_xonly_pubkey, generate_privkey
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, sha256, tx_from_hex
 from test_framework.test_framework import BitcoinTestFramework
-from test_framework.script import OP_0, OP_0NOTEQUAL, OP_1ADD, OP_1NEGATE, OP_1SUB, OP_2, OP_3, OP_8, OP_ABS, OP_ADD, OP_CHECKLOCKTIMEVERIFY, OP_DEPTH, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_NEGATE, OP_NOT, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_PICK, OP_ROLL, OP_SIZE, OP_SUB, OP_WITHIN, CScript, CScriptNum, CScriptOp, OP_1, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY, LEAF_VERSION_TAPSCRIPT_64BIT
+from test_framework.script import OP_0, OP_0NOTEQUAL, OP_1ADD, OP_1NEGATE, OP_1SUB, OP_2, OP_3, OP_8, OP_ABS, OP_ADD, OP_CHECKLOCKTIMEVERIFY, OP_DEPTH, OP_DROP, OP_GREATERTHAN, OP_GREATERTHANOREQUAL, OP_LESSTHAN, OP_LESSTHANOREQUAL, OP_MAX, OP_MIN, OP_NEGATE, OP_NOT, OP_NUMEQUAL, OP_NUMEQUALVERIFY, OP_NUMNOTEQUAL, OP_PICK, OP_ROLL, OP_SIZE, OP_SUB, OP_WITHIN, CScript, CScriptNum, CScriptOp, OP_1, OP_DUP, OP_EQUAL, OP_EQUALVERIFY, OP_VERIFY, taproot_construct, SIGHASH_DEFAULT, SIGHASH_ALL, SIGHASH_NONE, SIGHASH_SINGLE, SIGHASH_ANYONECANPAY
 from test_framework.address import output_key_to_p2tr
 
 VALID_SIGHASHES_ECDSA = [
@@ -61,7 +61,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         sec = generate_privkey()
         pub = compute_xonly_pubkey(sec)[0]
-        tap = taproot_construct(pub, LEAF_VERSION_TAPSCRIPT_64BIT, scripts)
+        tap = taproot_construct(pub, scripts)
         spk = tap.scriptPubKey
         addr = output_key_to_p2tr(tap.output_pubkey)
 

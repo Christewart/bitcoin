@@ -1386,10 +1386,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_REVAULT_IDX);
                     }
 
-                    const auto revault_amount = CScriptNum(
-                        // nMaxNumSize of 7, since that's the maximum number of bytes
-                        // necessary to capture any valid satoshi values (21e6 * 100e6).
-                        stacktop(-3), fRequireMinimal, /*nMaxNumSize=*/7).GetInt64();
+                    const auto revault_amount = GetCScriptNum(stacktop(-3), fRequireMinimal, SigVersion::TAPSCRIPT_64BIT).GetInt64();
                     if (revault_amount < 0) {
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_REVAULT);
                     }
@@ -2440,13 +2437,6 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
                 execdata.m_validation_weight_left_init = true;
                 return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT, checker, execdata, serror);
-            }
-            if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT_64BIT) {
-                // Tapscript (leaf version 0x66)
-                exec_script = CScript(script.begin(), script.end());
-                execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
-                execdata.m_validation_weight_left_init = true;
-                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT_64BIT, checker, execdata, serror);
             }
             if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
                 return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
