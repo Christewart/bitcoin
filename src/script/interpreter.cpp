@@ -1386,10 +1386,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_REVAULT_IDX);
                     }
 
-                    const auto revault_amount = CScriptNum(
-                        // nMaxNumSize of 7, since that's the maximum number of bytes
-                        // necessary to capture any valid satoshi values (21e6 * 100e6).
-                        stacktop(-3), fRequireMinimal, /*nMaxNumSize=*/7).GetInt64();
+                    const auto revault_amount = GetCScriptNum(stacktop(-3), fRequireMinimal, SigVersion::TAPSCRIPT_64BIT).GetInt64();
                     if (revault_amount < 0) {
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_REVAULT);
                     }

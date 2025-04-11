@@ -23,7 +23,6 @@ from test_framework.messages import (
 )
 from test_framework.script import (
     ANNEX_TAG,
-    LEAF_VERSION_TAPSCRIPT_64BIT,
     BIP341_sha_amounts,
     BIP341_sha_outputs,
     BIP341_sha_prevouts,
@@ -1138,7 +1137,7 @@ def spenders_taproot_active():
 
     # Future leaf versions
     for leafver in range(0, 0x100, 2):
-        if leafver == LEAF_VERSION_TAPSCRIPT or leafver == ANNEX_TAG or leafver == LEAF_VERSION_TAPSCRIPT_64BIT:
+        if leafver == LEAF_VERSION_TAPSCRIPT or leafver == ANNEX_TAG:
             # Skip the defined LEAF_VERSION_TAPSCRIPT, LEAF_VERSION_TAPSCRIPT_64BIT and the ANNEX_TAG which is not usable as leaf version
             continue
         scripts = [

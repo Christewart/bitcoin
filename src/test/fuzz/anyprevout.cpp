@@ -5,6 +5,7 @@
 #include <hash.h>
 #include <primitives/transaction.h>
 #include <script/interpreter.h>
+#include <script/sigversion.h>
 #include <test/fuzz/FuzzedDataProvider.h>
 #include <test/fuzz/fuzz.h>
 #include <test/fuzz/util.h>
