@@ -2438,13 +2438,6 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 execdata.m_validation_weight_left_init = true;
                 return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT, checker, execdata, serror);
             }
-            if ((control[0] & TAPROOT_LEAF_MASK) == TAPROOT_LEAF_TAPSCRIPT_64BIT) {
-                // Tapscript (leaf version 0x66)
-                exec_script = CScript(script.begin(), script.end());
-                execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
-                execdata.m_validation_weight_left_init = true;
-                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT_64BIT, checker, execdata, serror);
-            }
             if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
                 return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
             }
