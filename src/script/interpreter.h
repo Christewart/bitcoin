@@ -431,7 +431,7 @@ public:
     }
 
     virtual ~BaseSignatureChecker() {}
-    virtual ~BaseSignatureChecker() = default;
+    //virtual ~BaseSignatureChecker() = default;
     virtual PrecomputedTransactionData GetTransactionData() const {
         return PrecomputedTransactionData();
     }
@@ -553,6 +553,7 @@ public:
     {
         return m_checker.CheckVaultTrigger(
             execdata, trigger_out_idx, revault_out_idx, revault_amount, flu_script_with_data, flags, serror);
+    }
 
     PrecomputedTransactionData GetTransactionData() const override {
         return m_checker.GetTransactionData();

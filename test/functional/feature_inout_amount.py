@@ -1,6 +1,6 @@
 from test_framework.messages import COutPoint, CTransaction, CTxIn, CTxInWitness, CTxOut, ser_uint256, tx_from_hex
 from test_framework.key import compute_xonly_pubkey, generate_privkey
-from test_framework.script import LEAF_VERSION_TAPSCRIPT_64BIT, OP_1, OP_ENDIF, OP_GREATERTHANOREQUAL, OP_IF, OP_INOUT_AMOUNT, OP_SUB, CScript, CScriptNum, CScriptOp, taproot_construct
+from test_framework.script import OP_1, OP_ENDIF, OP_GREATERTHANOREQUAL, OP_IF, OP_INOUT_AMOUNT, OP_SUB, CScript, CScriptNum, CScriptOp, taproot_construct
 from test_framework.address import output_key_to_p2tr
 from test_framework.util import assert_raises_rpc_error
 from test_framework.test_framework import BitcoinTestFramework
@@ -41,7 +41,7 @@ class InOutAmountTest(BitcoinTestFramework):
 
         sec = generate_privkey()
         pub = compute_xonly_pubkey(sec)[0]
-        tap = taproot_construct(pub, LEAF_VERSION_TAPSCRIPT_64BIT, scripts)
+        tap = taproot_construct(pub, scripts)
         spk = tap.scriptPubKey
         addr = output_key_to_p2tr(tap.output_pubkey)
 
@@ -74,7 +74,7 @@ class InOutAmountTest(BitcoinTestFramework):
 
         tx = CTransaction()
 
-        tx.version = ver
+        tx.nVersion = ver
         tx.nLockTime = locktime
         # Spend the pegin and taproot tx together
         in_total = prev_tx.vout[prev_vout].nValue #.getAmount()
@@ -144,4 +144,4 @@ class InOutAmountTest(BitcoinTestFramework):
                                     inputs = [encodeWit(1), encodeWit(4)], fail='mandatory-script-verify-flag-failed (Index out of bounds)')
 
 if __name__ == '__main__':
-    InOutAmountTest(__file__).main()
+    InOutAmountTest().main()

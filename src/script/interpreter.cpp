@@ -265,7 +265,6 @@ CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const S
         case SigVersion::WITNESS_V0:
         case SigVersion::TAPROOT:
         case SigVersion::TAPSCRIPT:
-            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/4);
         case SigVersion::TAPSCRIPT_64BIT:
             return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/8);
     }
@@ -1419,10 +1418,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     popstack(stack);
                     popstack(stack);
                     stack.push_back(vchTrue);
+                }
+                break;
                 case OP_INOUT_AMOUNT:
                 {
                     // Opcodes only available post tapscript_64bit
-                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT || sigversion == SigVersion::TAPSCRIPT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
+                    if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     if (stack.size() < 2) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
 
                     CScriptNum bn1 = GetCScriptNum(stacktop(-2), fRequireMinimal, sigversion);

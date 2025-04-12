@@ -96,7 +96,7 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         tx = CTransaction()
 
-        tx.version = ver
+        tx.nVersion = ver
         tx.nLockTime = locktime
         # Spend the pegin and taproot tx together
         in_total = prev_tx.vout[prev_vout].nValue #.getAmount()
@@ -328,4 +328,4 @@ class Arithmetic64bitTest(BitcoinTestFramework):
 
         # comeback and add OP_CHECKSGIADD test
 if __name__ == '__main__':
-    Arithmetic64bitTest(__file__).main()
+    Arithmetic64bitTest().main()
