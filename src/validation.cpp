@@ -1896,36 +1896,38 @@ static std::optional<DeferredCheckError> ValidateDeferredChecks(
     const CTransaction& tx)
 {
     std::unordered_map<size_t, CAmount> expected_trigger_out;
-    std::unordered_map<size_t, CAmount> expected_recovery_out;
+    //std::unordered_map<size_t, CAmount> expected_recovery_out;
 
     for (const auto& c : checks) {
-        if (const auto& recov_check = c.m_recov_spend_check) {
-            expected_recovery_out[recov_check->vout_idx] += recov_check->amount;
-        }
-        else if (const auto& trigger_check = c.m_vault_trigger_check) {
-            if (!trigger_check->revault_vout_idx) {
+        // if (const auto& recov_check = c.m_recov_spend_check) {
+        //     expected_recovery_out[recov_check->vout_idx] += recov_check->amount;
+        // }
+        if (const auto& trigger_check = c.m_vault_trigger_check) {
+            //if (!trigger_check->revault_vout_idx) {
                 expected_trigger_out[trigger_check->vout_idx] += trigger_check->amount;
-            } else {
-                auto revault_amt{trigger_check->revault_amount};
-                auto trigger_amt{trigger_check->amount - revault_amt};
-                Assume(trigger_amt >= 0);
+            //} else {
+                //come back and look at this, do we need to
+                //implement some of this logic in Script?
+                //auto revault_amt{trigger_check->revault_amount};
+                //auto trigger_amt{trigger_check->amount - revault_amt};
+                //Assume(trigger_amt >= 0);
 
                 // These sums can't overflow because the total sum of the amounts we're
                 // adding are guaranteed to be at most (21 * 10**6 * 10**8), which is of
                 // course less than 2**63.
-                expected_trigger_out[trigger_check->vout_idx] += trigger_amt;
-                expected_trigger_out[*trigger_check->revault_vout_idx] += revault_amt;
-            }
+                //expected_trigger_out[trigger_check->vout_idx] += trigger_amt;
+                //expected_trigger_out[*trigger_check->revault_vout_idx] += revault_amt;
+            //}
         }
     }
 
     // Ensure that all vault inputs being swept to recovery have their value reflected
     // in the corresponding outputs.
-    for (const auto& [vout_idx, amount] : expected_recovery_out) {
-        if (tx.vout[vout_idx].nValue < amount) {
-            return DeferredCheckError{"vault-insufficient-recovery-value"};
-        }
-    }
+    // for (const auto& [vout_idx, amount] : expected_recovery_out) {
+    //     if (tx.vout[vout_idx].nValue < amount) {
+    //         return DeferredCheckError{"vault-insufficient-recovery-value"};
+    //     }
+    // }
 
     // Ensure that all vault inputs being triggered for unvault have their value
     // reflected in the corresponding outputs.

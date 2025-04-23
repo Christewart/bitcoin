@@ -23,10 +23,9 @@ from collections import defaultdict, Counter
 from test_framework.test_framework import BitcoinTestFramework
 from test_framework.p2p import P2PInterface
 from test_framework.wallet import MiniWallet, MiniWalletMode
-from test_framework.script import CScript, OP_VAULT, OP_VAULT_RECOVER
+from test_framework.script import OP_0, OP_1, OP_1NEGATE, OP_2, OP_2DUP, OP_3, OP_5, OP_6, OP_7, OP_DROP, OP_DUP, OP_ELSE, OP_ENDIF, OP_EQUAL, OP_EQUALVERIFY, OP_GREATERTHAN, OP_IF, OP_INOUT_AMOUNT, OP_PICK, OP_ROLL, OP_SWAP, OP_VERIFY, CScript, OP_VAULT, OP_VAULT_RECOVER
 from test_framework.messages import CTransaction, COutPoint, CTxOut, CTxIn, COIN
 from test_framework.util import assert_equal, assert_raises_rpc_error
-
 from test_framework import script, key, messages
 
 
@@ -887,8 +886,25 @@ class VaultSpec:
 
         self.spend_delay = spend_delay
 
+        # need to check that sum(vault_input_amount) - sum(revault_output_amount) = sum(vault_output_amount)
         self.recover_script = recovery_auth.script + CScript([
-            self.recovery_hash, OP_VAULT_RECOVER,
+            OP_DUP,
+            # since we have no OP_RSHIFT, we need to make a table to
+            # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
+            # if the revault_output_idx is 0, we need ot push OP_1 onto the stack
+            OP_0,
+            OP_EQUAL,
+            OP_IF,
+            OP_1,
+            OP_ELSE,
+            OP_0,
+            OP_ENDIF,
+            OP_DUP,
+            # OP_SWAP, #get input/output indices in the right position
+            OP_INOUT_AMOUNT,
+            OP_EQUALVERIFY,
+            self.recovery_hash,
+            OP_VAULT_RECOVER,
         ])
 
         self.unvault_xonly_pubkey = key.compute_xonly_pubkey(self.unvault_key.get_bytes())[0]
@@ -898,7 +914,34 @@ class VaultSpec:
         ])
         self.trigger_script = CScript([
             self.unvault_xonly_pubkey, script.OP_CHECKSIGVERIFY,
-            self.spend_delay, 2, vault_script, OP_VAULT,
+            self.spend_delay, 2, vault_script,
+            OP_6, # depth of revault amount on the stack
+            OP_ROLL, # get the revault amount, move it to the stack top
+            OP_6, # the depth of the revault index on the stack
+            OP_ROLL, # get the revault index, move it to the stack top
+            OP_DUP, # duplicate the revault_idx for the case where it is < -1
+            OP_1NEGATE,
+            OP_EQUAL, # check if the revault index is -1
+            OP_IF, # if the revault index is -1, we don't have a any revault outputs
+              OP_DROP, # drop the duplicated revault_idx
+              OP_0,
+              OP_EQUALVERIFY, # revault amount must be 0 if our revault index is -1
+            OP_ELSE,
+              OP_0, # make sure revault index is not negative
+              OP_GREATERTHAN,
+              OP_VERIFY, # fail if revault_idx is less than 0 (note: -1 is checked in OP_IF block)
+              OP_0, # don't care about any input indexes for now, so just push OP_0
+              OP_SWAP, # swap the input/output indexes on the stack top so they are in the right position for OP_INOUT_AMOUNT
+              OP_INOUT_AMOUNT, # push both the input values and output values to stack top
+            OP_ENDIF,
+            #OP_SWAP, # move input value to stack top
+            #OP_DROP, #drop input value because we don't care about it
+
+            #when we get here we need to pick a lane to do a check for revault amounts
+            # 1. We can allow the user to pass the expected revault amount via the stack. This replaces the deferred check
+            # 2. We can allow the user to not pass the amount on the stack, and we essentially re-check the output value via the deferred check.
+            # seems like (1) is the obvious choice
+            OP_VAULT,
         ])
 
         # The initializing taproot output is either spendable via OP_VAULT
@@ -1001,7 +1044,7 @@ BadTriggerWithdrawOpcode = BadBehavior(
 BadTriggerRecoverOpcode = BadBehavior(
     "trigger with bad recover script", "Trigger outputs not compatible")
 BadTriggerRevaultIdx = BadBehavior(
-    "trigger with too-negative revault index", "Invalid revault vout index")
+    "trigger with too-negative revault index", "Script failed an OP_VERIFY operation")
 
 BadRevaultLowAmount = BadBehavior(
     "bad revault amount (low)", ("Bad revault", "vault-insufficient-trigger-value"))
@@ -1009,7 +1052,7 @@ BadRevaultHighAmount = BadBehavior(
     "bad revault amount (high)", "bad-txns-in-belowout")
 
 BadRecoveryAmountLow = BadBehavior(
-    "bad recovery amount (low)", "recovery output nValue too low")
+    "bad recovery amount (low)", "Script failed an OP_EQUALVERIFY operation")
 BadRecoveryAmountHigh = BadBehavior(
     "bad recovery amount (high)", "bad-txns-in-belowout")
 BadRecoveryAuth = BadBehavior("bad recovery auth wit", "Invalid Schnorr signature")
