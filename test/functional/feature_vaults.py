@@ -913,8 +913,11 @@ class VaultSpec:
 
         ])
         self.trigger_script = CScript([
-            self.unvault_xonly_pubkey, script.OP_CHECKSIGVERIFY,
-            self.spend_delay, 2, vault_script,
+            self.unvault_xonly_pubkey,
+            script.OP_CHECKSIGVERIFY,
+            self.spend_delay,
+            2,
+            vault_script,
             OP_6, # depth of revault amount on the stack
             OP_ROLL, # get the revault amount, move it to the stack top
             OP_6, # the depth of the revault index on the stack
@@ -934,13 +937,6 @@ class VaultSpec:
               OP_SWAP, # swap the input/output indexes on the stack top so they are in the right position for OP_INOUT_AMOUNT
               OP_INOUT_AMOUNT, # push both the input values and output values to stack top
             OP_ENDIF,
-            #OP_SWAP, # move input value to stack top
-            #OP_DROP, #drop input value because we don't care about it
-
-            #when we get here we need to pick a lane to do a check for revault amounts
-            # 1. We can allow the user to pass the expected revault amount via the stack. This replaces the deferred check
-            # 2. We can allow the user to not pass the amount on the stack, and we essentially re-check the output value via the deferred check.
-            # seems like (1) is the obvious choice
             OP_VAULT,
         ])
 
