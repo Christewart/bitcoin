@@ -1319,6 +1319,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     }
 
+                    std::cout << "OP_VAULT_RECOVER.vin: " << checker.GetNIn() << std::endl;
                     for (size_t i = 0; i < stack.size(); ++i) {
                         std::cout << "OP_VAULT_RECOVER.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
                     }
@@ -1371,6 +1372,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     }
 
+                    std::cout << "OP_VAULT.vin: " << checker.GetNIn() << std::endl;
                     for (size_t i = 0; i < stack.size(); ++i) {
                         std::cout << "Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
                     }
@@ -2232,8 +2234,8 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     // then this is considered an authorized recovery.
     //
     // FIXME document the comparison more.
-    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 13)};
-    std::cout << "is_authed_recovery: " << is_authed_recovery << " execution_script: " << ScriptToAsmStr(executing_script) << " size: " << executing_script.size() << std::endl;
+    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 22)};
+    std::cout << "is_authed_recovery: " << is_authed_recovery << " execution_script: " << ScriptToAsmStr(executing_script) << " size: " << executing_script.size() << " auth_length: " << (uint256::WIDTH + 19) << std::endl;
     // If this is an unauthenticated recovery, ensure that the only other
     // output is an ephemeral anchor (by policy).
     if (flags & SCRIPT_VERIFY_VAULT_UNAUTH_RECOVERY_STRUCTURE && !is_authed_recovery) {
