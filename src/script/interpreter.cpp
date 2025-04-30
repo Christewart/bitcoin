@@ -926,6 +926,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 {
                     // (xn ... x2 x1 x0 n - xn ... x2 x1 x0 xn)
                     // (xn ... x2 x1 x0 n - ... x2 x1 x0 xn)
+                    for (size_t i = 0; i < stack.size(); ++i) {
+                        std::cout << "OP_ROLL.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
+                    }
                     if (stack.size() < 2)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     int n = CScriptNum(stacktop(-1), fRequireMinimal).getint();
@@ -933,6 +936,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     if (n < 0 || n >= (int)stack.size())
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     valtype vch = stacktop(-n-1);
+                    std::cout << "OP_ROLL.vch: " << HexStr(vch) << " n: " << n << std::endl;
                     if (opcode == OP_ROLL)
                         stack.erase(stack.end()-n-1);
                     stack.push_back(vch);
@@ -995,6 +999,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vch1 = stacktop(-2);
                     valtype& vch2 = stacktop(-1);
                     bool fEqual = (vch1 == vch2);
+                    for (size_t i = 0; i < stack.size(); ++i) {
+                        std::cout << "OP_EQUAL{VERIFY}.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
+                    }
+                    std::cout << "OP_EQUAL{VERIFY} vch1: " << HexStr(vch1) << " vch2: " <<  HexStr(vch2) << " fEqual: " << fEqual  << std::endl; 
                     // OP_NOTEQUAL is disabled because it would be too easy to say
                     // something like n != 1 and have some wiseguy pass in 1 with extra
                     // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
@@ -1067,6 +1075,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     switch (opcode)
                     {
                     case OP_ADD:
+                        std::cout << "bn1 " << bn1.getint() << " bn2 " << bn2.getint() << " result: " << (bn1.GetInt64() + bn2.GetInt64()) << std::endl;
                         bn = bn1 + bn2;
                         break;
                     case OP_SUB:
@@ -2234,7 +2243,7 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     // then this is considered an authorized recovery.
     //
     // FIXME document the comparison more.
-    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 22)};
+    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 24)};
     std::cout << "is_authed_recovery: " << is_authed_recovery << " execution_script: " << ScriptToAsmStr(executing_script) << " size: " << executing_script.size() << " auth_length: " << (uint256::WIDTH + 19) << std::endl;
     // If this is an unauthenticated recovery, ensure that the only other
     // output is an ephemeral anchor (by policy).
