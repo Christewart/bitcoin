@@ -951,8 +951,32 @@ class VaultSpec:
               
               # these will need to be changed when we move the trigger vout amount logic to Script
               OP_DROP, # drop the duplicated revault_vout_idx as its not needed
-              OP_DROP, # drop trigger vout index 
-              OP_DROP, # drop input index
+              #OP_DROP, # drop trigger vout index
+              #OP_DROP, # drop input index
+
+              # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
+              # if the trigger_vout_idx is 0, we need to push OP_1 onto the stack
+              OP_DUP,
+              OP_0,
+              OP_EQUAL,
+              OP_IF,
+                OP_DROP,
+                OP_1,
+              OP_ELSE,
+                OP_DUP,
+                OP_1,
+                OP_EQUAL,
+                OP_IF,
+                  OP_DROP,
+                  OP_2,
+                OP_ELSE,
+                  OP_0,
+                  OP_VERIFY,
+                OP_ENDIF,
+              OP_ENDIF,
+
+              OP_INOUT_AMOUNT, # push input_idx and trigger vout onto stack
+              OP_EQUALVERIFY, # make sure input_value = trigger_vout_value
             OP_ELSE,
               OP_DUP, # duplicate revault_idx
               OP_0, # make sure revault index is not negative
@@ -1115,7 +1139,7 @@ BadTriggerRecoveryPath = BadBehavior(
 BadTriggerSpendDelay = BadBehavior(
     "trigger with bad spend delay", "Trigger outputs not compatible")
 BadTriggerAmountLow = BadBehavior(
-    "trigger with low amount", "Trigger outputs not compatible")
+    "trigger with low amount", "Script failed an OP_EQUALVERIFY operation")
 BadTriggerAmountHigh = BadBehavior(
     "trigger with high amount", "bad-txns-in-belowout")
 BadTriggerWithdrawOpcode = BadBehavior(

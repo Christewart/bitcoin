@@ -2324,7 +2324,7 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultTrig
         return SCRIPT_ERR_UNVAULT_MISMATCH;
     }
 
-    CAmount total_val_out_to_vaults = value_out.nValue;
+   // CAmount total_val_out_to_vaults = value_out.nValue;
 
     // if (maybe_revault_out_idx >= 0) {
     //     assert(maybe_revault_out_idx <= std::numeric_limits<int>::max());
@@ -2351,17 +2351,17 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultTrig
     //     }
     // }
 
-    if (total_val_out_to_vaults < this->amount) {
+    //if (total_val_out_to_vaults < this->amount) {
         // Necessary but not sufficient check - other compatible inputs have to be
         // accounted for.
-        return SCRIPT_ERR_UNVAULT_MISMATCH;
-    }
+    //    return SCRIPT_ERR_UNVAULT_MISMATCH;
+    //}
 
     // std::optional<unsigned int> check_revault_idx =
     //     maybe_revault_out_idx >= 0 ? std::make_optional(maybe_revault_out_idx) : std::nullopt;
 
-    execdata.AddDeferredVaultTriggerCheck(
-        trigger_out_idx, this->amount);
+    // execdata.AddDeferredVaultTriggerCheck(
+    //     trigger_out_idx, this->amount);
     return std::nullopt;
 }
 
