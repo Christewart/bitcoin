@@ -1467,6 +1467,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     std::cout << "input_indices: " << bn1.getint() << " output_indices: " << bn2.getint() << std::endl;
                     popstack(stack);
                     popstack(stack);
+                    if (bn1 < bnZero || bn2 < bnZero) {
+                        return set_error(serror, SCRIPT_ERR_INDEX_OUTOFBOUNDS);
+                    }
                     std::vector<unsigned int> input_idxs = ParseBitMap(bn1);
                     std::vector<unsigned int> output_idxs = ParseBitMap(bn2);
                     int64_t fundingAmount = 0;
@@ -2243,7 +2246,7 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     // then this is considered an authorized recovery.
     //
     // FIXME document the comparison more.
-    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 24)};
+    const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 52)};
     std::cout << "is_authed_recovery: " << is_authed_recovery << " execution_script: " << ScriptToAsmStr(executing_script) << " size: " << executing_script.size() << " auth_length: " << (uint256::WIDTH + 19) << std::endl;
     // If this is an unauthenticated recovery, ensure that the only other
     // output is an ephemeral anchor (by policy).
