@@ -963,109 +963,109 @@ class VaultSpec:
             self.spend_delay,
             2,
             vault_script,
-            OP_6, # depth of input indices we are evaulating
-            OP_ROLL, # get the input indices we are evaulating, move it to the stack top
-            OP_6, # the depth of the revault vout index on the stack
-            OP_ROLL, # get the revault vout index, move it to the stack top
-            OP_6, # the depth of the trigger vout index on the stack
-            OP_PICK, # get the trigger vout index, move it to the stack top, but leave the original trigger_vout for OP_VAULT evaulation
-            OP_SWAP, # move revault vout to stack top
-            OP_DUP, # duplicate the revault_idx for the case where it is < -1
+            OP_6,            # Depth of input bitmap on stack
+            OP_ROLL,         # Move input bitmap to stack top
+            OP_6,            # Depth of revault vout index on stack
+            OP_ROLL,         # Move revault vout index to top
+            OP_6,            # Depth of trigger vout index on stack
+            OP_PICK,         # Copy trigger vout index to top (keep original for OP_VAULT)
+            OP_SWAP,         # Bring revault index to top
+            OP_DUP,          # Copy revault index (for -1 check)
             OP_1NEGATE,
-            OP_EQUAL, # check if the revault index is -1
-            OP_IF, # if the revault index is -1, we don't have a any revault outputs
-              OP_DROP, # drop the duplicated revault_vout_idx as its not needed
+            OP_EQUAL,        # Check if revault index == -1
 
-              # since we have no OP_RSHIFT, we need to make a table to
-              # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              OP_DUP,
-              OP_0,
-              OP_EQUAL,
-              OP_IF,
+            OP_IF,           # Case: No revault output present
+            OP_DROP,       # Drop duplicated -1
+
+            # Convert trigger index into bitmap (simulate shift table)
+            OP_DUP,
+            OP_0,
+            OP_EQUAL,
+            OP_IF,
                 OP_DROP,
                 OP_1,
-              OP_ELSE,
-                OP_DUP,
-                OP_1,
-                OP_EQUAL,
-                OP_IF,
-                  OP_DROP,
-                  OP_2,
-                OP_ELSE,
-                  OP_0,
-                  OP_VERIFY,
-                OP_ENDIF,
-              OP_ENDIF, # done with table impl from index -> bitmap
-
-              OP_INOUT_AMOUNT, # push funding OP_VAULT amounts and trigger vout amount onto stack
-              OP_EQUALVERIFY, # make sure sum(op_vault_input_amounts) == trigger_vout_value
             OP_ELSE,
-              OP_DUP, # duplicate revault_idx
-              OP_0, # make sure revault index is not negative
-              OP_GREATERTHAN,
-              OP_VERIFY, # fail if revault_idx is less than 0 (note: -1 is checked in OP_IF block)
-
-              # since we have no OP_RSHIFT, we need to make a table to
-              # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              OP_DUP,
-              OP_0,
-              OP_EQUAL,
-              OP_IF,
-                OP_DROP,
-                OP_1,
-              OP_ELSE,
                 OP_DUP,
                 OP_1,
                 OP_EQUAL,
                 OP_IF,
-                  OP_DROP, 
-                  OP_2,
-                OP_ELSE,
-                  OP_0,
-                  OP_VERIFY,
-                OP_ENDIF,
-              OP_ENDIF, # done with table impl from index -> bitmap
-
-              OP_2, # position of input_indices on the stack
-              OP_ROLL, # roll input_indices to the top of the stack
-              OP_SWAP, # swap the input/output indices on the stack top so they are in the right position for OP_INOUT_AMOUNT
-              OP_INOUT_AMOUNT, # push both the op_vault_input_amounts and revault_output amount to stack top
-
-              # now we need to get the trigger vout amount to the stack top
-              OP_2, # position of trigger vout idx on the stack
-              OP_ROLL, # roll trigger vout idx to stack top
-              OP_0, # push dummy input index to stack top
-              OP_SWAP, # get trigger vout idx and dummy input idx in right spot for OP_INOUT_AMOUNT
-
-              
-              # since we have no OP_RSHIFT, we need to make a table to
-              # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              OP_DUP,
-              OP_0,
-              OP_EQUAL,
-              OP_IF,
                 OP_DROP,
-                OP_1,
-              OP_ELSE,
-                OP_DUP,
-                OP_1,
-                OP_EQUAL,
-                OP_IF,
-                  OP_DROP,
-                  OP_2,
+                OP_2,
                 OP_ELSE,
-                  OP_0,
-                  OP_VERIFY,
+                OP_0,
+                OP_VERIFY,
                 OP_ENDIF,
-              OP_ENDIF, # done with table impl from index -> bitmap
-
-              OP_INOUT_AMOUNT,
-              OP_SWAP, # swap output result and input result so input result is at stack top
-              OP_DROP, # drop dummy input result
-              OP_ADD, # add trigger_vout_value and revault_vout_value
-              OP_EQUALVERIFY, # check that sum(op_vault_input_amounts) = trigger_vout_value + revault_vout_value
             OP_ENDIF,
-            OP_VAULT,
+
+            # Push amounts: op_vault_input_sum, trigger_vout_value
+            OP_INOUT_AMOUNT,
+            OP_EQUALVERIFY,  # Require: sum(inputs) == trigger output
+            OP_ELSE,         # Case: Revault output exists
+            OP_DUP,
+            OP_0,
+            OP_GREATERTHAN,
+            OP_VERIFY,      # Require revault index >= 0
+
+            # Convert revault index into bitmap
+            OP_DUP,
+            OP_0,
+            OP_EQUAL,
+            OP_IF,
+                OP_DROP,
+                OP_1,
+            OP_ELSE,
+                OP_DUP,
+                OP_1,
+                OP_EQUAL,
+                OP_IF,
+                OP_DROP,
+                OP_2,
+                OP_ELSE,
+                OP_0,
+                OP_VERIFY,
+                OP_ENDIF,
+            OP_ENDIF,
+
+            OP_2,           # Depth of input bitmap
+            OP_ROLL,        # Bring input bitmap to top
+            OP_SWAP,        # Reorder: input bitmap, output bitmap
+            OP_INOUT_AMOUNT, # Push amounts: op_vault_input_sum, revault_output_value
+
+            # Prepare trigger output lookup
+            OP_2,
+            OP_ROLL,
+            OP_0,           # Dummy input bitmap
+            OP_SWAP,
+
+            # Convert trigger index into bitmap
+            OP_DUP,
+            OP_0,
+            OP_EQUAL,
+            OP_IF,
+                OP_DROP,
+                OP_1,
+            OP_ELSE,
+                OP_DUP,
+                OP_1,
+                OP_EQUAL,
+                OP_IF,
+                OP_DROP,
+                OP_2,
+                OP_ELSE,
+                OP_0,
+                OP_VERIFY,
+                OP_ENDIF,
+            OP_ENDIF,
+
+            OP_INOUT_AMOUNT, # Push trigger output amount
+            OP_SWAP,
+            OP_DROP,         # Drop dummy input amount
+            OP_ADD,          # total_outputs = trigger + revault
+            OP_EQUALVERIFY,  # Require: sum(inputs) == total_outputs
+            OP_ENDIF,
+
+            OP_VAULT          # Final vault check
+
         ])
 
         # The initializing taproot output is either spendable via OP_VAULT
