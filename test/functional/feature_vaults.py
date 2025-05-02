@@ -890,63 +890,61 @@ class VaultSpec:
 
         # need to check that sum(trigger_input_amount) = recovery_output_amount)
         self.recover_script = recovery_auth.script + CScript([
-            OP_DUP, # duplicate recovery_output_idx
+            OP_DUP,           # Duplicate recovery_output_idx for lookup
 
-            # since we have no OP_LSHIFT, we need to make a table to
-            # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-            # if the recovery_output_idx is 0, we need to push OP_1 onto the stack
+            # Simulate a left shift for recovery_output_idx using a lookup table since OP_LSHIFT isn't available
             OP_0,
             OP_EQUAL,
             OP_IF,
-              OP_1,
+            OP_1,
             OP_ELSE,
-              OP_DUP,
-              OP_1,
-              OP_EQUAL,
-              OP_IF,
+            OP_DUP,
+            OP_1,
+            OP_EQUAL,
+            OP_IF,
                 OP_2,
-              OP_ELSE,
+            OP_ELSE,
                 OP_DUP,
                 OP_2,
                 OP_EQUAL,
                 OP_IF,
-                  OP_4,
+                OP_4,
                 OP_ELSE,
-                  OP_DUP,
-                  OP_3,
-                  OP_EQUAL,
-                  OP_IF,
+                OP_DUP,
+                OP_3,
+                OP_EQUAL,
+                OP_IF,
                     OP_8,
-                  OP_ELSE,
-                    # skipping OP_4 in the table for brevity, its not needed for the test cases...
+                OP_ELSE,
                     OP_DUP,
                     OP_5,
                     OP_EQUAL,
                     OP_IF,
-                      CScriptNum(32),
+                    CScriptNum(32),
                     OP_ELSE,
-                      OP_DUP,
-                      OP_1NEGATE,
-                      OP_EQUAL,
-                      OP_IF,
+                    OP_DUP,
+                    OP_1NEGATE,
+                    OP_EQUAL,
+                    OP_IF,
                         OP_1NEGATE,
-                      OP_ELSE,
+                    OP_ELSE,
                         OP_0,
                         OP_VERIFY,
-                      OP_ENDIF,
                     OP_ENDIF,
-                  OP_ENDIF,
+                    OP_ENDIF,
                 OP_ENDIF,
-              OP_ENDIF,
+                OP_ENDIF,
             OP_ENDIF,
-            # done with table
-            OP_2, # trigger_input_indices index in stack
-            OP_ROLL, # move input indices to top of stack
-            OP_SWAP, # swap them with output indices to get the args in correct order for OP_INOUT_AMOUNT
-            OP_INOUT_AMOUNT, # push sum(trigger_input_amount) recovery_output_amount onto stack
-            OP_EQUALVERIFY, # check that sum(trigger_input_maount) = recovery_output_amount onto stack
+            OP_ENDIF,
+
+            OP_2,             # Stack depth of trigger_input_indices
+            OP_ROLL,          # Move input bitmap to stack top
+            OP_SWAP,          # Reorder: input_bitmap, output_bitmap
+            OP_INOUT_AMOUNT,  # Push input_sum and recovery_output_value
+            OP_EQUALVERIFY,   # Ensure: sum(trigger_inputs) == recovery_output_value
+
             self.recovery_hash,
-            OP_VAULT_RECOVER,
+            OP_VAULT_RECOVER
         ])
 
         self.unvault_xonly_pubkey = key.compute_xonly_pubkey(self.unvault_key.get_bytes())[0]
