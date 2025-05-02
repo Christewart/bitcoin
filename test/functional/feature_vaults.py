@@ -888,12 +888,13 @@ class VaultSpec:
 
         self.spend_delay = spend_delay
 
-        # need to check that sum(vault_input_amount) - sum(revault_output_amount) = sum(vault_output_amount)
+        # need to check that sum(trigger_input_amount) = recovery_output_amount)
         self.recover_script = recovery_auth.script + CScript([
-            OP_DUP,
-            # since we have no OP_RSHIFT, we need to make a table to
+            OP_DUP, # duplicate recovery_output_idx
+
+            # since we have no OP_LSHIFT, we need to make a table to
             # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-            # if the revault_output_idx is 0, we need to push OP_1 onto the stack
+            # if the recovery_output_idx is 0, we need to push OP_1 onto the stack
             OP_0,
             OP_EQUAL,
             OP_IF,
@@ -939,11 +940,11 @@ class VaultSpec:
               OP_ENDIF,
             OP_ENDIF,
             # done with table
-            OP_2, # input indices index in stack
+            OP_2, # trigger_input_indices index in stack
             OP_ROLL, # move input indices to top of stack
             OP_SWAP, # swap them with output indices to get the args in correct order for OP_INOUT_AMOUNT
-            OP_INOUT_AMOUNT,
-            OP_EQUALVERIFY,
+            OP_INOUT_AMOUNT, # push sum(trigger_input_amount) recovery_output_amount onto stack
+            OP_EQUALVERIFY, # check that sum(trigger_input_maount) = recovery_output_amount onto stack
             self.recovery_hash,
             OP_VAULT_RECOVER,
         ])
