@@ -271,7 +271,6 @@ CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const S
         case SigVersion::WITNESS_V0:
         case SigVersion::TAPROOT:
         case SigVersion::TAPSCRIPT:
-            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/4);
         case SigVersion::TAPSCRIPT_64BIT:
             return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/8);
     }
@@ -2126,7 +2125,7 @@ static bool VerifyWitnessProgram(const CScriptWitness& witness, int witversion, 
                 exec_script = CScript(script.begin(), script.end());
                 execdata.m_validation_weight_left = ::GetSerializeSize(witness.stack) + VALIDATION_WEIGHT_OFFSET;
                 execdata.m_validation_weight_left_init = true;
-                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT_64BIT, checker, execdata, serror);
+                return ExecuteWitnessScript(stack, exec_script, flags, SigVersion::TAPSCRIPT_64BIT, checker, execdata, tx_exec_data, serror);
             }
             if (flags & SCRIPT_VERIFY_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION) {
                 return set_error(serror, SCRIPT_ERR_DISCOURAGE_UPGRADABLE_TAPROOT_VERSION);
