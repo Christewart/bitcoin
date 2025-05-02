@@ -1224,7 +1224,6 @@ def get_recovery_tx(
         recov_tr = v.recovery_tr_info
         compat_vaults[recov_tr].append(v)
         assert v.total_amount_sats
-        print("v.total_amount_sats: " + str(v.total_amount_sats))
         vault_totals[recov_tr] += v.total_amount_sats
         vault_to_taproot[v] = recov_tr
 
@@ -1299,17 +1298,14 @@ def get_recovery_tx(
         presig_tx_mutator(recovery_tx)
 
 
-    print("vault_to_recov_index: " + str(vault_to_recov_output_index.values()))
     recov_value_to_indices = defaultdict(list)
     for idx, val in enumerate(vault_to_recov_output_index.values()):
         recov_value_to_indices[val].append(idx)
-    print("recov_value_to_indices: " + str(recov_value_to_indices))
     input_bitmap = {}
     for val, indices in recov_value_to_indices.items():
         bitmap = indices_to_bitmap(indices, len(vault_to_recov_output_index))
         for idx in indices:
             input_bitmap[idx] = bitmap
-    print("input_bitmap: " + str(input_bitmap))
 
     for i, vault in enumerate(vaults):
         wit_fragment = []
@@ -1344,10 +1340,7 @@ def get_recovery_tx(
             recov_vout_idx -= 1
         elif BadRecoveryVoutIdxNoExist in bad_behavior:
             recov_vout_idx = len(recovery_tx.vout) + 1
-        print("len(vin): " + str(len(recovery_tx.vin)) + " i: " + str(i) + " recovering_from_vaulted: " + str(recovering_from_vaulted))
-        print("recov_vout_idx " + str(recov_vout_idx))
-        print("auth_wit_fragment: " + str(len(auth_wit_fragment)))
-        print("*wit_fragment: " + str(len(wit_fragment)))
+
         witness.scriptWitness.stack = [
             # I believe i somehow need to get the bitmap of all input indices that are recovery outputs here?
             # TODO: test recov_vout_idx that is lt/gt number of outputs
@@ -1508,8 +1501,6 @@ def get_trigger_tx(
     spec_to_vout_idx = {}
 
     for spec in unvault_trigger_specs:
-        for o in spec.vault_outputs:
-            print("vault.output: " + str(o.nValue))
         for vault in spec.compat_vaults:
             vaults_to_spec[vault] = spec
 
@@ -1545,8 +1536,6 @@ def get_trigger_tx(
     input_indices = 0 
     for idx,(_,_) in enumerate(vaults_to_spec.items()):
         input_indices += 1 << idx
-
-    print("input_indices: " + str(input_indices))
 
     # Sign the input for each vault and attach a fitting witness.
     for i, (vault, spec) in enumerate(vaults_to_spec.items()):
@@ -1586,14 +1575,6 @@ def get_trigger_tx(
             vault.trigger_script,
             vault.init_tr.controlblock_for_script_spend("trigger"),
         ]
-        #4_999_990_000 in
-
-        #14_899_970_000 trigger
-        #99_999_999
-        print("revault_vout_idx: " + str(revault_vout_idx) + " revault_amount: " + str(revault_amount) + 
-              " revault_idx: " + str(revault_idx) + " tx.vout[revault_vout_idx].nvalue: " + 
-              str(trigger_tx.vout[revault_vout_idx].nValue) + " tx.vout[trigger_vout_idx].nvalue: " + 
-              str(trigger_tx.vout[trigger_vout_idx].nValue) + " len(vin): " + str(len(trigger_tx.vin)))
     
     if postsig_tx_mutator:
         postsig_tx_mutator(trigger_tx)

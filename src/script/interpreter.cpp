@@ -926,9 +926,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 {
                     // (xn ... x2 x1 x0 n - xn ... x2 x1 x0 xn)
                     // (xn ... x2 x1 x0 n - ... x2 x1 x0 xn)
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "OP_ROLL.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
                     if (stack.size() < 2)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     int n = CScriptNum(stacktop(-1), fRequireMinimal).getint();
@@ -936,7 +933,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     if (n < 0 || n >= (int)stack.size())
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     valtype vch = stacktop(-n-1);
-                    std::cout << "OP_ROLL.vch: " << HexStr(vch) << " n: " << n << std::endl;
                     if (opcode == OP_ROLL)
                         stack.erase(stack.end()-n-1);
                     stack.push_back(vch);
@@ -999,10 +995,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vch1 = stacktop(-2);
                     valtype& vch2 = stacktop(-1);
                     bool fEqual = (vch1 == vch2);
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "OP_EQUAL{VERIFY}.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
-                    std::cout << "OP_EQUAL{VERIFY} vch1: " << HexStr(vch1) << " vch2: " <<  HexStr(vch2) << " fEqual: " << fEqual  << std::endl; 
+
                     // OP_NOTEQUAL is disabled because it would be too easy to say
                     // something like n != 1 and have some wiseguy pass in 1 with extra
                     // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
@@ -1075,7 +1068,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     switch (opcode)
                     {
                     case OP_ADD:
-                        std::cout << "bn1 " << bn1.getint() << " bn2 " << bn2.getint() << " result: " << (bn1.GetInt64() + bn2.GetInt64()) << std::endl;
                         bn = bn1 + bn2;
                         break;
                     case OP_SUB:
@@ -1328,11 +1320,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     }
 
-                    std::cout << "OP_VAULT_RECOVER.vin: " << checker.GetNIn() << std::endl;
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "OP_VAULT_RECOVER.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
-
 
                     // Stack:
                     //  - <recovery-sPK-hash>
@@ -1346,12 +1333,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     }
                     const uint256 recovery_spk_hash{hash_bytes_from_stack};
-                    std::cout << "OP_VAULT_RECOVER.recover_spk_hash: " << recovery_spk_hash.GetHex() << std::endl;
                     std::optional<size_t> recovery_vout_idx = GetVoutIdxFromStack(-2);
                     if (!recovery_vout_idx) {
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_VOUT_IDX);
                     }
-                    std::cout << "OP_VAULT_RECOVER.recovery_vout_idx: " << recovery_vout_idx.value() << std::endl;
 
                     if (const auto& err = checker.CheckVaultRecover(
                             *recovery_vout_idx, execdata, recovery_spk_hash, script, flags)) {
@@ -1381,23 +1366,13 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
                     }
 
-                    std::cout << "OP_VAULT.vin: " << checker.GetNIn() << std::endl;
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
-
-                    std::cout << "stack size: " << stack.size() << std::endl;
                     const valtype& flu_script_data{stacktop(-1)};
                     CScript flu_script_body{flu_script_data.begin(), flu_script_data.end()};
                     popstack(stack);
 
-                    std::cout << "flu_script_body: " << ScriptToAsmStr(flu_script_body) << std::endl;
-
                     const CScriptNum n_pushes_data{stacktop(-1), fRequireMinimal};
                     const size_t n_pushes = static_cast<size_t>(n_pushes_data.GetInt64());
                     popstack(stack);
-
-                    std::cout << "n_pushes: " << n_pushes << std::endl;
 
                     // Needed on stack: n pushes + the 2 vout indices
                     if (n_pushes < 0 || stack.size() < (n_pushes + 1)) {
@@ -1415,15 +1390,12 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     flu_script.reserve(flu_script.size() + flu_script_body.size());
                     move_to_end(flu_script, flu_script_body);
 
-                    std::cout << "flu_script: " << ScriptToAsmStr(flu_script) << std::endl;
-
                     // Indicates which of the vouts carries forward
                     // the value from the vault into the unvault trigger output.
                     const std::optional<size_t> trigger_vout_idx = GetVoutIdxFromStack(-1);
                     if (!trigger_vout_idx) {
                         return set_error(serror, SCRIPT_ERR_VAULT_BAD_VOUT_IDX);
                     }
-                    std::cout << "trigger_vout_idx: " << trigger_vout_idx.value() << std::endl;
                     // Indicates which (if any) of the vouts is a "revault" of some
                     // portion of the value back into the original vault sPK.
                     // const int revault_vout_idx = CScriptNum{stacktop(-2), fRequireMinimal}.getint();
@@ -1434,7 +1406,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                     // const auto revault_amount = GetCScriptNum(stacktop(-3), fRequireMinimal, SigVersion::TAPSCRIPT_64BIT).GetInt64();
 
-                    // std::cout << "revault_amount: " << revault_amount << std::endl;
                     // if (revault_amount < 0) {
                     //     return set_error(serror, SCRIPT_ERR_VAULT_BAD_REVAULT);
                     // }
@@ -1443,15 +1414,10 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                             execdata, *trigger_vout_idx, flu_script, flags, serror)) {
                         return set_error(serror, *err);
                     }
-                    std::cout << "Done with CheckVaultTrigger()" << std::endl;
                     // popstack(stack);
                     // popstack(stack);
                     popstack(stack);
                     stack.push_back(vchTrue);
-
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "OP_VAULT.After.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
                 }
                 break;
                 case OP_INOUT_AMOUNT:
@@ -1459,12 +1425,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // Opcodes only available post tapscript_64bit
                     if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0 || sigversion == SigVersion::TAPROOT) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
                     if (stack.size() < 2) return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-                    for (size_t i = 0; i < stack.size(); ++i) {
-                        std::cout << "OP_INOUT_AMOUNT.Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
-                    }
                     CScriptNum bn1 = GetCScriptNum(stacktop(-2), fRequireMinimal, sigversion);
                     CScriptNum bn2 = GetCScriptNum(stacktop(-1), fRequireMinimal, sigversion);
-                    std::cout << "input_indices: " << bn1.getint() << " output_indices: " << bn2.getint() << std::endl;
                     popstack(stack);
                     popstack(stack);
                     if (bn1 < bnZero || bn2 < bnZero) {
@@ -1487,7 +1449,6 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         outAmount += checker.GetTransactionData().outputs[idx].nValue;
                     }
 
-                    std::cout << "fundingAmount: " << fundingAmount << " outAmount: " << outAmount << std::endl;
                     const CScriptNum input_amount(fundingAmount);
                     CScriptNum output_amount(outAmount);
                     stack.push_back(input_amount.getvch());  
@@ -2206,7 +2167,6 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     const CScript& executing_script,
     unsigned int flags) const
 {
-    std::cout << "CheckVaultRecover()" << std::endl;
     const auto& vout = this->txTo->vout;
     const auto num_vout = vout.size();
 
@@ -2247,7 +2207,6 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     //
     // FIXME document the comparison more.
     const bool is_authed_recovery{executing_script.size() > (uint256::WIDTH + 52)};
-    std::cout << "is_authed_recovery: " << is_authed_recovery << " execution_script: " << ScriptToAsmStr(executing_script) << " size: " << executing_script.size() << " auth_length: " << (uint256::WIDTH + 19) << std::endl;
     // If this is an unauthenticated recovery, ensure that the only other
     // output is an ephemeral anchor (by policy).
     if (flags & SCRIPT_VERIFY_VAULT_UNAUTH_RECOVERY_STRUCTURE && !is_authed_recovery) {
@@ -2258,7 +2217,6 @@ std::optional<ScriptError> GenericTransactionSignatureChecker<T>::CheckVaultReco
     }
 
     //execdata.AddDeferredVaultRecoveryCheck(recovery_vout_idx, this->amount);
-    std::cout << "Done CheckVaultRecover()" << std::endl;
     return std::nullopt;
 }
 
