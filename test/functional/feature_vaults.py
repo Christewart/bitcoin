@@ -963,8 +963,8 @@ class VaultSpec:
             self.spend_delay,
             2,
             vault_script,
-            OP_6, # depth of input index we are evaulating
-            OP_ROLL, # get the input index we are evaulating, move it to the stack top
+            OP_6, # depth of input indices we are evaulating
+            OP_ROLL, # get the input indices we are evaulating, move it to the stack top
             OP_6, # the depth of the revault vout index on the stack
             OP_ROLL, # get the revault vout index, move it to the stack top
             OP_6, # the depth of the trigger vout index on the stack
@@ -974,17 +974,10 @@ class VaultSpec:
             OP_1NEGATE,
             OP_EQUAL, # check if the revault index is -1
             OP_IF, # if the revault index is -1, we don't have a any revault outputs
-              #OP_0, # don't care about input indexes
-              #OP_SWAP, # swap the input/output indexes on the stack top so they are in the right position for OP_INOUT_AMOUNT
-              #OP_INOUT_AMOUNT, # ??? if we don't have any revaults, how can we check an output's amount is 0 ????
-              #OP_0,
-              #OP_EQUALVERIFY, # revault amount must be 0 if our revault index is -1
-              
-              # these will need to be changed when we move the trigger vout amount logic to Script
               OP_DROP, # drop the duplicated revault_vout_idx as its not needed
 
+              # since we have no OP_RSHIFT, we need to make a table to
               # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              # if the trigger_vout_idx is 0, we need to push OP_1 onto the stack
               OP_DUP,
               OP_0,
               OP_EQUAL,
@@ -1002,10 +995,10 @@ class VaultSpec:
                   OP_0,
                   OP_VERIFY,
                 OP_ENDIF,
-              OP_ENDIF,
+              OP_ENDIF, # done with table impl from index -> bitmap
 
-              OP_INOUT_AMOUNT, # push input_idx and trigger vout onto stack
-              OP_EQUALVERIFY, # make sure input_value = trigger_vout_value
+              OP_INOUT_AMOUNT, # push funding OP_VAULT amounts and trigger vout amount onto stack
+              OP_EQUALVERIFY, # make sure sum(op_vault_input_amounts) == trigger_vout_value
             OP_ELSE,
               OP_DUP, # duplicate revault_idx
               OP_0, # make sure revault index is not negative
@@ -1014,7 +1007,6 @@ class VaultSpec:
 
               # since we have no OP_RSHIFT, we need to make a table to
               # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              # if the revault_output_idx is 0, we need to push OP_1 onto the stack
               OP_DUP,
               OP_0,
               OP_EQUAL,
@@ -1032,22 +1024,22 @@ class VaultSpec:
                   OP_0,
                   OP_VERIFY,
                 OP_ENDIF,
-              OP_ENDIF,
+              OP_ENDIF, # done with table impl from index -> bitmap
 
-              OP_2, # position of input_index on the stack
-              OP_ROLL, # roll it to the top of the stack
-              OP_SWAP, # swap the input/output indexes on the stack top so they are in the right position for OP_INOUT_AMOUNT
-              OP_INOUT_AMOUNT, # push both the input_idx value and revault_output value to stack top
+              OP_2, # position of input_indices on the stack
+              OP_ROLL, # roll input_indices to the top of the stack
+              OP_SWAP, # swap the input/output indices on the stack top so they are in the right position for OP_INOUT_AMOUNT
+              OP_INOUT_AMOUNT, # push both the op_vault_input_amounts and revault_output amount to stack top
 
-              # now we need to get the trigger vout value to the stack top
+              # now we need to get the trigger vout amount to the stack top
               OP_2, # position of trigger vout idx on the stack
               OP_ROLL, # roll trigger vout idx to stack top
               OP_0, # push dummy input index to stack top
               OP_SWAP, # get trigger vout idx and dummy input idx in right spot for OP_INOUT_AMOUNT
-                      # since we have no OP_RSHIFT, we need to make a table to
+
               
+              # since we have no OP_RSHIFT, we need to make a table to
               # be able to get the correct bitmap on the stack for OP_INOUT_AMOUNT
-              # if the trigger_vout_idx is 0, we need to push OP_1 onto the stack
               OP_DUP,
               OP_0,
               OP_EQUAL,
@@ -1065,13 +1057,13 @@ class VaultSpec:
                   OP_0,
                   OP_VERIFY,
                 OP_ENDIF,
-              OP_ENDIF,
+              OP_ENDIF, # done with table impl from index -> bitmap
 
               OP_INOUT_AMOUNT,
               OP_SWAP, # swap output result and input result so input result is at stack top
               OP_DROP, # drop dummy input result
               OP_ADD, # add trigger_vout_value and revault_vout_value
-              OP_EQUALVERIFY, # check that input_value = trigger_vout_value + revault_vout_value
+              OP_EQUALVERIFY, # check that sum(op_vault_input_amounts) = trigger_vout_value + revault_vout_value
             OP_ENDIF,
             OP_VAULT,
         ])
