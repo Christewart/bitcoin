@@ -136,14 +136,14 @@ class Unvaulting(AugmentedP2TR):
 
         super().__init__(NUMS_KEY if alternate_pk is None else alternate_pk)
 
-    def get_scripts(self) -> TapTree:
+    def get_scripts(self, input_idx: int) -> TapTree:
         # witness: <withdrawal_pk>
         withdrawal = (
             "withdraw",
             CScript([
                 OP_DUP,
 
-                -1,
+                input_idx,
                 0 if self.alternate_pk is None else self.alternate_pk,
                 -1,
                 CCV_MODE_CHECK_INPUT,
@@ -271,7 +271,7 @@ class CheckContractVerifyVaultTest(BitcoinTestFramework):
                  withdrawal_pk, script.bn2vch(0)]
             )],
             outputs=[
-                unvault_contract.get_tx_out(vault_amount, withdrawal_pk),
+                unvault_contract.get_tx_out(vault_amount, withdrawal_pk, input_idx=0),
             ],
         )
 
@@ -377,7 +377,7 @@ class CheckContractVerifyVaultTest(BitcoinTestFramework):
                 )
             ],
             outputs=[
-                unvault_contract.get_tx_out(withdrawal_amount, withdrawal_pk),
+                unvault_contract.get_tx_out(withdrawal_amount, withdrawal_pk, input_idx=0),
                 vault_contract.get_tx_out(revault_amount)
             ],
         )
@@ -415,7 +415,7 @@ class CheckContractVerifyVaultTest(BitcoinTestFramework):
                  withdrawal_pk, script.bn2vch(0)]
             )],
             outputs=[
-                unvault_contract.get_tx_out(vault_amount, withdrawal_pk)
+                unvault_contract.get_tx_out(vault_amount, withdrawal_pk, input_idx=0)
             ],
         )
         unvault_txid = self.assert_broadcast_tx(tx_trigger, mine_all=True)

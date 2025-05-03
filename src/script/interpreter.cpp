@@ -1956,9 +1956,9 @@ bool GenericTransactionSignatureChecker<T>::CheckContract(int mode, int index, c
         initialXOnlyKey = XOnlyPubKey{std::span<const unsigned char>{pubkey.data(), pubkey.data() + 32}};
     }
 
-    if (index == -1) {
-        index = nIn;
-    }
+    // if (index == -1) {
+    //     index = nIn;
+    // }
 
     auto indexLimit = (mode == CCV_MODE_CHECK_INPUT ? txTo->vin.size() : txTo->vout.size());
     if (index < 0 || index >= static_cast<int>(indexLimit)) {

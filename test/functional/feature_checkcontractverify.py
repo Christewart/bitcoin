@@ -93,7 +93,7 @@ class AugmentedP2TR:
 
         self.naked_internal_pubkey = naked_internal_pubkey
 
-    def get_scripts(self) -> TapTree:
+    def get_scripts(self, input_idx: int) -> TapTree:
         raise NotImplementedError("This must be implemented in subclasses")
 
     def get_script(self, clause_name: str):
@@ -102,11 +102,11 @@ class AugmentedP2TR:
                 return clause_script
         raise ValueError(f"Clause {clause_name} not found")
 
-    def get_taptree(self) -> bytes:
+    def get_taptree(self,) -> bytes:
         # use dummy data, since it doesn't affect the merkle root
-        return self.get_tr_info(b'').merkle_root
+        return self.get_tr_info(b'', input_idx=0).merkle_root
 
-    def get_tr_info(self, data: bytes) -> TaprootInfo:
+    def get_tr_info(self, data: bytes, input_idx: int) -> TaprootInfo:
         if len(data) == 0:
             internal_pubkey = self.naked_internal_pubkey
         else:
@@ -115,10 +115,10 @@ class AugmentedP2TR:
 
             internal_pubkey, _ = key.tweak_add_pubkey(
                 self.naked_internal_pubkey, data_hash)
-        return script.taproot_construct(internal_pubkey, [self.get_scripts()])
+        return script.taproot_construct(internal_pubkey, [self.get_scripts(input_idx=input_idx)])
 
-    def get_tx_out(self, value: int, data: bytes) -> CTxOut:
-        return CTxOut(nValue=value, scriptPubKey=self.get_tr_info(data).scriptPubKey)
+    def get_tx_out(self, value: int, data: bytes, input_idx: int) -> CTxOut:
+        return CTxOut(nValue=value, scriptPubKey=self.get_tr_info(data, input_idx=input_idx).scriptPubKey)
 
 
 class PrivkeyPlaceholder:
@@ -170,7 +170,7 @@ def create_tx(
 
     in_txouts = []
 
-    for inp in inputs:
+    for (input_idx,inp) in enumerate(inputs):
         txin = CTxIn(COutPoint(int(inp.txid, 16), inp.vout_index),
                      nSequence=inp.nSequence)
         tx.vin.append(txin)
@@ -178,7 +178,7 @@ def create_tx(
         # Retrieve leaf script & control block
         if isinstance(inp.contract, AugmentedP2TR):
             assert inp.data is not None
-            tr_info = inp.contract.get_tr_info(inp.data)
+            tr_info = inp.contract.get_tr_info(inp.data, input_idx)
         else:
             assert isinstance(inp.contract, P2TR) and inp.data is None
             tr_info = inp.contract.get_tr_info()
@@ -250,12 +250,12 @@ class CompareWithEmbeddedData(AugmentedP2TR):
     def __init__(self):
         super().__init__(NUMS_KEY)
 
-    def get_scripts(self) -> TapTree:
+    def get_scripts(self, input_idx: int) -> TapTree:
         return (
             "check_data",
             CScript([
                 # witness: <data>
-                -1,  # index: check current input
+                input_idx,
                 0,   # use NUMS as the naked pubkey
                 -1,  # use taptree of the current input
                 CCV_MODE_CHECK_INPUT,  # check input
@@ -271,13 +271,13 @@ class SendToSelf(P2TR):
     The output index must match the input index.
     """
 
-    def __init__(self):
+    def __init__(self, input_idx: int):
         super().__init__(
             NUMS_KEY,
             ("send_to_self", CScript([
                 # witness: <>
                 0,   # no data tweaking
-                -1,  # index: check current output
+                input_idx,
                 -1,  # use internal key of the current input
                 -1,  # use taptree of the current input
                 CCV_MODE_CHECK_OUTPUT,  # all the amount must go to this output
@@ -431,10 +431,11 @@ class CheckContractVerifyTest(BitcoinTestFramework):
 
         # Create UTXO for T
 
+        # am i forcing this output to be spent in a transaction with input 0?
         tx2 = create_tx(
             inputs=[CcvInput(tx1_txid, tx1_n, amount_sats,
                              S, None, "forced", [data])],
-            outputs=[T.get_tx_out(amount_sats - fees, data)]
+            outputs=[T.get_tx_out(amount_sats - fees, data, input_idx=0)]
         )
 
         if not ignore_amount:
@@ -508,7 +509,8 @@ class CheckContractVerifyTest(BitcoinTestFramework):
             ))
 
         # Create UTXO for T
-        outputs = [T.get_tx_out(sum(amounts_sats), data)]
+        # am i forcing this output to be spent in a transaction with input 0?
+        outputs = [T.get_tx_out(sum(amounts_sats), data, input_idx=0)]
         tx4 = create_tx(inputs, outputs)
 
         # broadcast with insufficient output amount; this should fail
@@ -532,8 +534,9 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         # - sending to an output with the same scriptPubKey works.
 
         amount_sats = 10000
-
-        C = SendToSelf()
+        # am i forcing this output to be spent in a transaction with input 0?
+        input_idx = 0
+        C = SendToSelf(input_idx=input_idx)
 
         res = wallet.send_to(
             from_node=node,
