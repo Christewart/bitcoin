@@ -39,6 +39,7 @@ from test_framework.script import (
     OP_CHECKCONTRACTVERIFY,
     OP_RETURN,
     OP_TRUE,
+    CScriptNum,
     TaprootInfo,
 )
 from test_framework.messages import CTransaction, COutPoint, CTxInWitness, CTxOut, CTxIn
@@ -113,7 +114,7 @@ class AugmentedP2TR:
 
         self.naked_internal_pubkey = naked_internal_pubkey
 
-    def get_scripts(self, input_idx: int) -> TapTree:
+    def get_scripts(self) -> TapTree:
         raise NotImplementedError("This must be implemented in subclasses")
 
     def get_script(self, clause_name: str):
@@ -135,7 +136,7 @@ class AugmentedP2TR:
 
             internal_pubkey, _ = key.tweak_add_pubkey(
                 self.naked_internal_pubkey, data_hash)
-        return script.taproot_construct(internal_pubkey, [self.get_scripts(input_idx=input_idx)])
+        return script.taproot_construct(internal_pubkey, [self.get_scripts()])
 
     def get_tx_out(self, value: int, data: bytes, input_idx: int) -> CTxOut:
         return CTxOut(nValue=value, scriptPubKey=self.get_tr_info(data, input_idx=input_idx).scriptPubKey)
@@ -162,9 +163,15 @@ class CcvInput:
 
     # excluding the control block and the script
     wit_stack: List[Union[bytes, PrivkeyPlaceholder]]
-
     nSequence: int = 0
 
+def encodeWit(num):
+    if (num > 0 and num <= 16):
+        return int(num).to_bytes(1, 'little', signed=True)
+    else:
+        # need to drop the push ops in CScriptNum as the witness
+        # has already been 'evaluated' (pushed) by the interpreter
+        return CScriptNum.encode(CScriptNum(num))[1:]
 
 def create_tx(
     inputs: List[CcvInput],
@@ -203,13 +210,14 @@ def create_tx(
             assert isinstance(inp.contract, P2TR) and inp.data is None
             tr_info = inp.contract.get_tr_info()
 
+        # print(tr_info.leaves)
         in_txouts.append(
             CTxOut(nValue=inp.amount, scriptPubKey=tr_info.scriptPubKey))
 
         leaf_script = tr_info.leaves[inp.leaf_name].script
         control_block = tr_info.controlblock_for_script_spend(inp.leaf_name)
         wit_stack = inp.wit_stack.copy()
-        wit_stack.extend([leaf_script, control_block])
+        wit_stack.extend([encodeWit(input_idx), leaf_script, control_block])
 
         wit = CTxInWitness()
         wit.scriptWitness.stack = wit_stack
@@ -251,7 +259,7 @@ class EmbedData(P2TR):
                 "forced",
                 CScript([
                     # witness: <data>
-                    0,  # index
+                    #0,  # index
                     0,  # use NUMS as the naked pubkey
                     CompareWithEmbeddedData().get_taptree(),  # output Merkle tree
                     CCV_MODE_CHECK_OUTPUT_IGNORE_AMOUNT if ignore_amount else CCV_MODE_CHECK_OUTPUT,  # mode
@@ -296,12 +304,12 @@ class CompareWithEmbeddedData(AugmentedP2TR):
     def __init__(self):
         super().__init__(NUMS_KEY)
 
-    def get_scripts(self, input_idx: int) -> TapTree:
+    def get_scripts(self) -> TapTree:
         return (
             "check_data",
             CScript([
                 # witness: <data>
-                input_idx,
+                #input_idx,
                 0,   # use NUMS as the naked pubkey
                 -1,  # use taptree of the current input
                 CCV_MODE_CHECK_INPUT,  # check input
@@ -434,9 +442,13 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         self.generate(wallet, 200)
 
         self.test_ccv(node, wallet, data=b'\x42'*32, ignore_amount=False)
-        #self.test_ccv(node, wallet, data=b'', ignore_amount=True)
-        #self.test_ccv(node, wallet, data=b'\x42'*32, ignore_amount=True)
+        self.log.info("Done test_ccv ignore_amount=False")
+        self.test_ccv(node, wallet, data=b'', ignore_amount=True)
+        self.log.info("Done test_ccv ignore_amount=True")
+        self.test_ccv(node, wallet, data=b'\x42'*32, ignore_amount=True)
+        self.log.info("Done test_ccv ignore_amount=True data non empty")
         #self.test_many_to_one(node, wallet)
+        #self.log.info("Done test_many_to_one")
         #self.test_send_to_self(node, wallet)
         #self.test_deduct_amount(node, wallet)
         #self.test_undefined_modes_opsuccess(node, wallet)
@@ -542,6 +554,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         for i in range(3):
             # Create UTXO for S[i]
             amount_sats = 100000 * (i + 1)
+            print("amount_sats: " + str(amount_sats))
             amounts_sats.append(amount_sats)
 
             res = wallet.send_to(
@@ -562,7 +575,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         # broadcast with insufficient output amount; this should fail
         tx4.vout[0].nValue -= 1
         self.assert_broadcast_tx(
-            tx4, err_msg='Incorrect amount for OP_CHECKCONTRACTVERIFY')
+            tx4, err_msg='Script failed an OP_EQUALVERIFY operation')
         tx4.vout[0].nValue += 1
 
         # correct amount succeeds

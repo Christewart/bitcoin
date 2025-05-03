@@ -13,6 +13,7 @@
 #include <script/sigversion.h>
 #include <uint256.h>
 #include <iostream>
+#include <core_io.h>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -448,6 +449,7 @@ static bool EvalChecksig(const valtype& sig, const valtype& pubkey, CScript::con
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, unsigned int flags, const BaseSignatureChecker& checker, SigVersion sigversion, ScriptExecutionData& execdata, ScriptError* serror, TransactionExecutionData* tx_exec_data)
 {
+    std::cout << "EvalScript.script: " << ScriptToAsmStr(script) << std::endl;
     static const CScriptNum bnZero(0);
     static const CScriptNum bnOne(1);
     // static const CScriptNum bnFalse(0);
@@ -1146,6 +1148,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
 
                 case OP_CHECKCONTRACTVERIFY:
                 {
+                    std::cout << "Evaluating OP_CCV nIn:" << checker.GetNIn() << std::endl;
                     // OP_CHECKCONTRACTVERIFY is only available in Tapscript
                     if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
 
@@ -1186,6 +1189,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     popstack(stack);
                     popstack(stack);
                     popstack(stack);
+                    std::cout << "Done OP_CCV" << std::endl;
                 }
                 break;
 
