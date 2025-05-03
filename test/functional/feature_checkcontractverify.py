@@ -18,6 +18,11 @@ from test_framework.script import (
     OP_0,
     OP_1,
     OP_2DUP,
+    OP_3,
+    OP_4,
+    OP_5,
+    OP_6,
+    OP_DROP,
     OP_DUP,
     OP_ELSE,
     OP_ENDIF,
@@ -25,7 +30,9 @@ from test_framework.script import (
     OP_EQUALVERIFY,
     OP_IF,
     OP_IN_AMOUNT,
+    OP_NOTIF,
     OP_OUT_AMOUNT,
+    OP_PICK,
     OP_SWAP,
     OP_VERIFY,
     CScript,
@@ -245,26 +252,35 @@ class EmbedData(P2TR):
                 CScript([
                     # witness: <data>
                     0,  # index
-                    OP_DUP, #duplicate index
-                    
-                    # shift table for index since we have no OP_LSHIFT
-                    OP_0,
-                    OP_EQUAL,
-                    OP_IF,
-                        OP_1,
-                    OP_ELSE,
-                        OP_0,
-                        OP_VERIFY,
-                    OP_ENDIF,
-
-                    OP_DUP, # duplicate shifted index
-                    OP_IN_AMOUNT, # push input_amount onto stack
-                    OP_SWAP, # swap input amount and index
-                    OP_OUT_AMOUNT, # push output amount onto stack
-                    OP_EQUALVERIFY, # make sure input and output amounts are equal
                     0,  # use NUMS as the naked pubkey
                     CompareWithEmbeddedData().get_taptree(),  # output Merkle tree
                     CCV_MODE_CHECK_OUTPUT_IGNORE_AMOUNT if ignore_amount else CCV_MODE_CHECK_OUTPUT,  # mode
+                    OP_DUP, # duplicate mode check
+                    OP_1,
+                    OP_EQUAL,
+                    OP_NOTIF,
+                      # means we have an amount lock
+                      OP_3,
+                      OP_PICK,
+                      OP_DUP, #duplicate index
+                    
+                      # shift table for index since we have no OP_LSHIFT
+                      OP_0,
+                      OP_EQUAL,
+                      OP_IF,
+                        OP_DROP, # drop duplicated index
+                        OP_1,
+                      OP_ELSE,
+                        OP_0,
+                        OP_VERIFY,
+                      OP_ENDIF,
+
+                      OP_DUP, # duplicate shifted index
+                      OP_IN_AMOUNT, # push input_amount onto stack
+                      OP_SWAP, # swap input amount and index
+                      OP_OUT_AMOUNT, # push output amount onto stack
+                      OP_EQUALVERIFY, # make sure input and output amounts are equal
+                    OP_ENDIF,
                     OP_CHECKCONTRACTVERIFY,
                     OP_TRUE
                 ])
