@@ -12,6 +12,7 @@
 #include <script/script.h>
 #include <script/sigversion.h>
 #include <uint256.h>
+#include <iostream>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -935,6 +936,8 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     valtype& vch1 = stacktop(-2);
                     valtype& vch2 = stacktop(-1);
                     bool fEqual = (vch1 == vch2);
+
+                    std::cout << "vch1: " << HexStr(vch1) << " vch2: " << HexStr(vch2) << " fEqual: " << fEqual <<  std::endl;
                     // OP_NOTEQUAL is disabled because it would be too easy to say
                     // something like n != 1 and have some wiseguy pass in 1 with extra
                     // zero bytes after it (numerically, 0x01 == 0x0001 == 0x000001)
@@ -1990,41 +1993,41 @@ bool GenericTransactionSignatureChecker<T>::CheckContract(int mode, int index, c
             return set_error(serror, tx_exec_data->m_error.value());
         }
 
-        switch (mode) {
-            case CCV_MODE_CHECK_OUTPUT:
-                if (tx_exec_data->m_ccv_output_checked_deduct[index]) {
-                    tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
-                    return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
-                }
-                tx_exec_data->m_ccv_output_checked_default[index] = true;
+        // switch (mode) {
+        //     case CCV_MODE_CHECK_OUTPUT:
+        //         if (tx_exec_data->m_ccv_output_checked_deduct[index]) {
+        //             tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
+        //             return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
+        //         }
+        //         tx_exec_data->m_ccv_output_checked_default[index] = true;
 
-                tx_exec_data->m_ccv_output_min_amount[index] += ScriptExecutionData.m_ccv_amount;
-                ScriptExecutionData.m_ccv_amount = 0;
-                if (txTo->vout[index].nValue < tx_exec_data->m_ccv_output_min_amount[index]) {
-                    tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
-                    return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
-                }
-                break;
-            case CCV_MODE_CHECK_OUTPUT_IGNORE_AMOUNT:
-                // amount checking is disabled
-                break;
-            case CCV_MODE_CHECK_OUTPUT_DEDUCT_AMOUNT:
-                if (tx_exec_data->m_ccv_output_checked_default[index] || tx_exec_data->m_ccv_output_checked_deduct[index]) {
-                    tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
-                    return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
-                }
-                tx_exec_data->m_ccv_output_checked_deduct[index] = true;
-                // subtract amount from input
-                if (txTo->vout[index].nValue > ScriptExecutionData.m_ccv_amount) {
-                    tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
-                    return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
-                }
-                ScriptExecutionData.m_ccv_amount -= txTo->vout[index].nValue;
+        //         tx_exec_data->m_ccv_output_min_amount[index] += ScriptExecutionData.m_ccv_amount;
+        //         ScriptExecutionData.m_ccv_amount = 0;
+        //         if (txTo->vout[index].nValue < tx_exec_data->m_ccv_output_min_amount[index]) {
+        //             tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
+        //             return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
+        //         }
+        //         break;
+        //     case CCV_MODE_CHECK_OUTPUT_IGNORE_AMOUNT:
+        //         // amount checking is disabled
+        //         break;
+        //     case CCV_MODE_CHECK_OUTPUT_DEDUCT_AMOUNT:
+        //         if (tx_exec_data->m_ccv_output_checked_default[index] || tx_exec_data->m_ccv_output_checked_deduct[index]) {
+        //             tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
+        //             return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
+        //         }
+        //         tx_exec_data->m_ccv_output_checked_deduct[index] = true;
+        //         // subtract amount from input
+        //         if (txTo->vout[index].nValue > ScriptExecutionData.m_ccv_amount) {
+        //             tx_exec_data->m_error = SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT;
+        //             return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_AMOUNT);
+        //         }
+        //         ScriptExecutionData.m_ccv_amount -= txTo->vout[index].nValue;
 
-                break;
-            default:
-                break;
-        }
+        //         break;
+        //     default:
+        //         break;
+        // }
     }
 
     return true;
