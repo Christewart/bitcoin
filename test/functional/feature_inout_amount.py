@@ -41,7 +41,7 @@ class InOutAmountTest(BitcoinTestFramework):
 
         sec = generate_privkey()
         pub = compute_xonly_pubkey(sec)[0]
-        tap = taproot_construct(pub, LEAF_VERSION_TAPSCRIPT_64BIT, scripts)
+        tap = taproot_construct(pub, scripts)
         spk = tap.scriptPubKey
         addr = output_key_to_p2tr(tap.output_pubkey)
 
