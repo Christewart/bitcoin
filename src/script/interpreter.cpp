@@ -1149,6 +1149,9 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_CHECKCONTRACTVERIFY:
                 {
                     std::cout << "Evaluating OP_CCV nIn:" << checker.GetNIn() << std::endl;
+                    for (size_t i = 0; i < stack.size(); ++i) {
+                        std::cout << "Stack[" << i << "]: " << HexStr(stack[i]) << std::endl;
+                    }
                     // OP_CHECKCONTRACTVERIFY is only available in Tapscript
                     if (sigversion == SigVersion::BASE || sigversion == SigVersion::WITNESS_V0) return set_error(serror, SCRIPT_ERR_BAD_OPCODE);
 
@@ -1165,16 +1168,23 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         return set_success(serror);
                     }
 
+                    std::cout << "flags: " << flags << std::endl;
+
                     // all currently defined versions require exactly 5 stack elements
 
                     // (data index pk taptree flags -- )
                     if (stack.size() < 5)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
-
+                    //std::cout << "stacktop(-6) " << HexStr(stacktop(-6)) << std::endl;
                     valtype& data = stacktop(-5);
+                    std::cout << "data: " << HexStr(data) << std::endl;
                     int index = CScriptNum(stacktop(-4), fRequireMinimal).getint();
+                    std::cout << "index: " << index << std::endl;
                     valtype& pk = stacktop(-3);
+
+                    std::cout << "pk: " << HexStr(pk) << std::endl;
                     valtype& taptree = stacktop(-2);
+                    std::cout << "taptree: " << HexStr(taptree) << std::endl;
 
                     if (!pk.empty() && pk != std::vector<unsigned char>{0x81} && pk.size() != 32) {
                         return set_error(serror, SCRIPT_ERR_CHECKCONTRACTVERIFY_WRONG_ARGS);
@@ -1325,6 +1335,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         fundingAmount += checker.GetTransactionData().m_spent_outputs[idx].nValue;
                     }
                     const CScriptNum input_amount(fundingAmount);
+                    std::cout << "input_num: " << bn1.GetInt64() << " input_amount: " << input_amount.GetInt64() << std::endl;
                     stack.push_back(input_amount.getvch());
 
                 }
@@ -1351,6 +1362,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         spendingAmount += checker.GetTransactionData().outputs[idx].nValue;
                     }
                     const CScriptNum output_amount(spendingAmount);
+                    std::cout << "output_num: " << bn1.GetInt64() << " output_amount: " << output_amount.GetInt64() << std::endl;
                     stack.push_back(output_amount.getvch());
 
                 }
@@ -1930,6 +1942,7 @@ bool GenericTransactionSignatureChecker<T>::CheckSequence(const CScriptNum& nSeq
 template <class T>
 bool GenericTransactionSignatureChecker<T>::CheckContract(int mode, int index, const std::vector<unsigned char>& pubkey, const std::vector<unsigned char>& data, const std::vector<unsigned char>& taptree, ScriptExecutionData& ScriptExecutionData, ScriptError* serror, TransactionExecutionData* tx_exec_data) const
 {
+    std::cout << "Begin CheckContract()" << std::endl;
     assert(ScriptExecutionData.m_internal_key.has_value());
     assert(ScriptExecutionData.m_taproot_merkle_root.has_value());
     assert(tx_exec_data != nullptr);
@@ -2033,7 +2046,7 @@ bool GenericTransactionSignatureChecker<T>::CheckContract(int mode, int index, c
         //         break;
         // }
     }
-
+    std::cout << "Done CheckContract()" << std::endl;
     return true;
 }
 

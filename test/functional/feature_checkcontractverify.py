@@ -17,6 +17,7 @@ from test_framework.wallet import MiniWallet, MiniWalletMode
 from test_framework.script import (
     OP_0,
     OP_1,
+    OP_2,
     OP_2DUP,
     OP_3,
     OP_4,
@@ -33,6 +34,7 @@ from test_framework.script import (
     OP_NOTIF,
     OP_OUT_AMOUNT,
     OP_PICK,
+    OP_ROLL,
     OP_SWAP,
     OP_VERIFY,
     CScript,
@@ -125,9 +127,9 @@ class AugmentedP2TR:
 
     def get_taptree(self,) -> bytes:
         # use dummy data, since it doesn't affect the merkle root
-        return self.get_tr_info(b'', input_idx=0).merkle_root
+        return self.get_tr_info(b'').merkle_root
 
-    def get_tr_info(self, data: bytes, input_idx: int) -> TaprootInfo:
+    def get_tr_info(self, data: bytes) -> TaprootInfo:
         if len(data) == 0:
             internal_pubkey = self.naked_internal_pubkey
         else:
@@ -138,8 +140,8 @@ class AugmentedP2TR:
                 self.naked_internal_pubkey, data_hash)
         return script.taproot_construct(internal_pubkey, [self.get_scripts()])
 
-    def get_tx_out(self, value: int, data: bytes, input_idx: int) -> CTxOut:
-        return CTxOut(nValue=value, scriptPubKey=self.get_tr_info(data, input_idx=input_idx).scriptPubKey)
+    def get_tx_out(self, value: int, data: bytes) -> CTxOut:
+        return CTxOut(nValue=value, scriptPubKey=self.get_tr_info(data).scriptPubKey)
 
 
 class PrivkeyPlaceholder:
@@ -197,19 +199,22 @@ def create_tx(
 
     in_txouts = []
 
-    for (input_idx,inp) in enumerate(inputs):
+    input_indices = 0
+    for idx in range(0, len(inputs)):
+        input_indices += 1 << input_indices
+    for inp in inputs:
         txin = CTxIn(COutPoint(int(inp.txid, 16), inp.vout_index),
                      nSequence=inp.nSequence)
         tx.vin.append(txin)
-
+        
         # Retrieve leaf script & control block
         if isinstance(inp.contract, AugmentedP2TR):
             assert inp.data is not None
-            tr_info = inp.contract.get_tr_info(inp.data, input_idx)
+            tr_info = inp.contract.get_tr_info(inp.data)
         else:
             assert isinstance(inp.contract, P2TR) and inp.data is None
             tr_info = inp.contract.get_tr_info()
-
+        
         # print(tr_info.leaves)
         in_txouts.append(
             CTxOut(nValue=inp.amount, scriptPubKey=tr_info.scriptPubKey))
@@ -217,8 +222,7 @@ def create_tx(
         leaf_script = tr_info.leaves[inp.leaf_name].script
         control_block = tr_info.controlblock_for_script_spend(inp.leaf_name)
         wit_stack = inp.wit_stack.copy()
-        wit_stack.extend([encodeWit(input_idx), leaf_script, control_block])
-
+        wit_stack.extend([encodeWit(input_indices), encodeWit(0), leaf_script, control_block])
         wit = CTxInWitness()
         wit.scriptWitness.stack = wit_stack
         tx.wit.vtxinwit.append(wit)
@@ -259,7 +263,8 @@ class EmbedData(P2TR):
                 "forced",
                 CScript([
                     # witness: <data>
-                    #0,  # index
+                    # witness: input_indices
+                    # witness: output_idx
                     0,  # use NUMS as the naked pubkey
                     CompareWithEmbeddedData().get_taptree(),  # output Merkle tree
                     CCV_MODE_CHECK_OUTPUT_IGNORE_AMOUNT if ignore_amount else CCV_MODE_CHECK_OUTPUT,  # mode
@@ -268,9 +273,9 @@ class EmbedData(P2TR):
                     OP_EQUAL,
                     OP_NOTIF,
                       # means we have an amount lock
-                      OP_3,
-                      OP_PICK,
-                      OP_DUP, #duplicate index
+                      OP_3, # output_indices position on stack
+                      OP_PICK, # move output_indices to stack top
+                      OP_DUP, #duplicate output_indices
                     
                       # shift table for index since we have no OP_LSHIFT
                       OP_0,
@@ -283,11 +288,16 @@ class EmbedData(P2TR):
                         OP_VERIFY,
                       OP_ENDIF,
 
-                      OP_DUP, # duplicate shifted index
-                      OP_IN_AMOUNT, # push input_amount onto stack
-                      OP_SWAP, # swap input amount and index
-                      OP_OUT_AMOUNT, # push output amount onto stack
+                      #OP_DUP, # duplicate shifted index
+                      OP_OUT_AMOUNT, # push output_amount onto stack
+                      OP_5, # input indices position on stack
+                      OP_ROLL, # move input_indices to stack top
+                      OP_IN_AMOUNT, # push input amount onto stack
                       OP_EQUALVERIFY, # make sure input and output amounts are equal
+                    OP_ELSE,
+                      OP_4, # input_indices on stack
+                      OP_ROLL, # roll input_indices on stack to stack top
+                      OP_DROP, # drop input_indices as its not needed for the OP_CCV opcode
                     OP_ENDIF,
                     OP_CHECKCONTRACTVERIFY,
                     OP_TRUE
@@ -312,6 +322,9 @@ class CompareWithEmbeddedData(AugmentedP2TR):
                 #input_idx,
                 0,   # use NUMS as the naked pubkey
                 -1,  # use taptree of the current input
+                OP_3, # input_indices on stack
+                OP_ROLL, # move input_indices to stack top
+                OP_DROP, # drop the input_indices as they are not needed for MODE_CHECK_INPUT
                 CCV_MODE_CHECK_INPUT,  # check input
                 OP_CHECKCONTRACTVERIFY,
                 OP_TRUE
@@ -493,7 +506,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         tx2 = create_tx(
             inputs=[CcvInput(tx1_txid, tx1_n, amount_sats,
                              S, None, "forced", [data])],
-            outputs=[T.get_tx_out(amount_sats - fees, data, input_idx=0)]
+            outputs=[T.get_tx_out(amount_sats - fees, data)]
         )
 
         if not ignore_amount:
@@ -524,6 +537,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
                              T, data, "check_data", [data])],
             outputs=[dest_ctr.get_tx_out(amount_sats - 2 * fees)]
         )
+
         self.assert_broadcast_tx(tx3, mine_all=True)
 
     def test_many_to_one(
@@ -568,8 +582,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
             ))
 
         # Create UTXO for T
-        # am i forcing this output to be spent in a transaction with input 0?
-        outputs = [T.get_tx_out(sum(amounts_sats), data, input_idx=0)]
+        outputs = [T.get_tx_out(sum(amounts_sats), data)]
         tx4 = create_tx(inputs, outputs)
 
         # broadcast with insufficient output amount; this should fail
