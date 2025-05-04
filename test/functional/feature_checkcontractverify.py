@@ -201,7 +201,8 @@ def create_tx(
 
     input_indices = 0
     for idx in range(0, len(inputs)):
-        input_indices += 1 << input_indices
+        input_indices += 1 << idx
+    
     for inp in inputs:
         txin = CTxIn(COutPoint(int(inp.txid, 16), inp.vout_index),
                      nSequence=inp.nSequence)
@@ -460,8 +461,8 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         self.log.info("Done test_ccv ignore_amount=True")
         self.test_ccv(node, wallet, data=b'\x42'*32, ignore_amount=True)
         self.log.info("Done test_ccv ignore_amount=True data non empty")
-        #self.test_many_to_one(node, wallet)
-        #self.log.info("Done test_many_to_one")
+        self.test_many_to_one(node, wallet)
+        self.log.info("Done test_many_to_one")
         #self.test_send_to_self(node, wallet)
         #self.test_deduct_amount(node, wallet)
         #self.test_undefined_modes_opsuccess(node, wallet)
