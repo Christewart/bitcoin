@@ -1015,6 +1015,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                         bn = bn1 + bn2;
                         break;
                     case OP_SUB:
+                        std::cout << "bn1: " << bn1.GetInt64() << " - bn2: " << bn2.GetInt64() << std::endl;
                         bn = bn1 - bn2;
                         break;
                     case OP_BOOLAND:             bn = (bn1 != bnZero && bn2 != bnZero); break;

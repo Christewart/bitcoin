@@ -29,13 +29,16 @@ from test_framework.script import (
     OP_ENDIF,
     OP_EQUAL,
     OP_EQUALVERIFY,
+    OP_FROMALTSTACK,
     OP_IF,
     OP_IN_AMOUNT,
     OP_NOTIF,
     OP_OUT_AMOUNT,
     OP_PICK,
     OP_ROLL,
+    OP_SUB,
     OP_SWAP,
+    OP_TOALTSTACK,
     OP_VERIFY,
     CScript,
     OP_CHECKCONTRACTVERIFY,
@@ -380,38 +383,87 @@ class SendToSelf(AugmentedP2TR):
         )
 
 
-class SplitFunds(P2TR):
+class SplitFunds(AugmentedP2TR):
     """
     An output that can only be spent by sending part of the fund to itself,
     and all the remaining funds to the P2TR address with NUMS pubkey.
     """
 
     def __init__(self):
-        super().__init__(
-            NUMS_KEY,
-            (
+        super().__init__(NUMS_KEY)
+
+    def get_scripts(self) -> TapTree:
+        return (
                 "split", CScript([
                     # witness: <>
-                    0,   # no data tweaking
-                    0,   # index
+                    #0,   # no data tweaking
+                    #0,   # index
                     -1,  # use internal key of the current input
                     -1,  # use taptree of the current input
                     # check output, deduct amount from input
+
+                    OP_3,
+                    OP_ROLL,
+                    OP_IN_AMOUNT, # push full input amount onto the stack
+                    OP_4, # first output index on stack
+                    OP_PICK, # move it to stack top
+
+                    # shift table for index since we have no OP_LSHIFT
+                    OP_0,
+                    OP_EQUAL,
+                    OP_IF,
+                      #OP_DROP, # drop duplicated index
+                      OP_1,
+                    OP_ELSE,
+                      OP_0,
+                      OP_VERIFY,
+                    OP_ENDIF,
+
+                    # 1. Push full amount from input
+                    # 2. Push first output index value
+                    # 3. Subract first output index value from input amount
+                    # 4. Push second output index value
+                    # 5. Check input_value - first_output_value = second_output_value
+                    OP_OUT_AMOUNT, # push first_output_amount onto stack
+                    OP_SUB, # input_amount - first_output_amount
+                    OP_TOALTSTACK, # move input_amount - first_output_amount to alt stack for now to check later
+
                     CCV_MODE_CHECK_OUTPUT_DEDUCT_AMOUNT,
                     OP_CHECKCONTRACTVERIFY,
+
 
                     0,   # no data tweaking
                     1,   # index
                     0,   # NUMS pubkey
                     0,   # no taptweak
+                    
                     # check output, all remaining amount must go to this output
+                    OP_2,
+                    OP_PICK,
+
+                    # shift table for index since we have no OP_LSHIFT
+                    OP_1,
+                    OP_EQUAL,
+                    OP_IF,
+                      #OP_DROP, # drop duplicated index
+                      OP_2,
+                    OP_ELSE,
+                      OP_0,
+                      OP_VERIFY,
+                    OP_ENDIF,
+
+                    OP_OUT_AMOUNT, # push second_output_value onto stack
+                    OP_FROMALTSTACK, # move input_amount - first_output_amount back from alt stack
+                    OP_SUB, # (input_amount - first_output_amount) - second_output_value
+                    OP_0,
+                    OP_EQUALVERIFY, # (input_amount - first_output_amount) - second_output_value = 0
+                    
                     CCV_MODE_CHECK_OUTPUT,
                     OP_CHECKCONTRACTVERIFY,
 
                     OP_TRUE
                 ])
             )
-        )
 
 
 def ccv(mode=0, index=0, data=0, pk=0, tree=0):
@@ -490,7 +542,8 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         self.log.info("Done test_many_to_one")
         self.test_send_to_self(node, wallet)
         self.log.info("Done test_send_to_self")
-        #self.test_deduct_amount(node, wallet)
+        self.test_deduct_amount(node, wallet)
+        self.log.info("Done test_deduct_amount")
         #self.test_undefined_modes_opsuccess(node, wallet)
         #self.test_invalid_parameters(node, wallet)
 
@@ -679,7 +732,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
 
         #            tx1              tx2
         # MiniWallet ==> SplitFunds() ==> SplitFunds(), P2TR(NUMS)
-
+        data = bytes()
         S = SplitFunds()
 
         amount_sats = 10000
@@ -687,7 +740,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
 
         res = wallet.send_to(
             from_node=node,
-            scriptPubKey=S.get_tr_info().scriptPubKey,
+            scriptPubKey=S.get_tr_info(data).scriptPubKey,
             amount=amount_sats
         )
         tx1_txid, tx1_n = (res['txid'], res['sent_vout'])
@@ -695,9 +748,9 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         # Create UTXO for S
         tx2 = create_tx(
             inputs=[CcvInput(tx1_txid, tx1_n, amount_sats,
-                             S, None, "split", [])],
+                             S, data=data, leaf_name="split", wit_stack=[data])],
             outputs=[
-                S.get_tx_out(recover_amount_sats),
+                S.get_tx_out(recover_amount_sats, data),
                 CTxOut(
                     nValue=amount_sats - recover_amount_sats - 1,  # 1 sat short, this must fail
                     scriptPubKey=b'\x51\x20' + NUMS_KEY
@@ -706,7 +759,7 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         )
 
         self.assert_broadcast_tx(
-            tx2, err_msg='Incorrect amount for OP_CHECKCONTRACTVERIFY')
+            tx2, err_msg='Script failed an OP_EQUALVERIFY operation')
 
         tx2.vout[1].nValue += 1  # correct amount
 
