@@ -544,8 +544,8 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         self.log.info("Done test_send_to_self")
         self.test_deduct_amount(node, wallet)
         self.log.info("Done test_deduct_amount")
-        #self.test_undefined_modes_opsuccess(node, wallet)
-        #self.test_invalid_parameters(node, wallet)
+        self.test_undefined_modes_opsuccess(node, wallet)
+        self.test_invalid_parameters(node, wallet)
 
     def test_ccv(
         self,
