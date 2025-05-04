@@ -208,6 +208,7 @@ def create_tx(
                      nSequence=inp.nSequence)
         tx.vin.append(txin)
         
+        print("inp.data: " + str(inp.data))
         # Retrieve leaf script & control block
         if isinstance(inp.contract, AugmentedP2TR):
             assert inp.data is not None
@@ -223,6 +224,8 @@ def create_tx(
         leaf_script = tr_info.leaves[inp.leaf_name].script
         control_block = tr_info.controlblock_for_script_spend(inp.leaf_name)
         wit_stack = inp.wit_stack.copy()
+        print("wit_stack: " + str(wit_stack))
+        print("input_indices: " + str(input_indices))
         wit_stack.extend([encodeWit(input_indices), encodeWit(0), leaf_script, control_block])
         wit = CTxInWitness()
         wit.scriptWitness.stack = wit_stack
@@ -333,22 +336,44 @@ class CompareWithEmbeddedData(AugmentedP2TR):
         )
 
 
-class SendToSelf(P2TR):
+class SendToSelf(AugmentedP2TR):
     """
     A utxo that can only be spent by sending the entire amount to the same script.
     The output index must match the input index.
     """
 
-    def __init__(self, input_idx: int):
-        super().__init__(
-            NUMS_KEY,
+    def __init__(self):
+        super().__init__(NUMS_KEY)
+
+    def get_scripts(self) -> TapTree:
+        return (
             ("send_to_self", CScript([
                 # witness: <>
-                0,   # no data tweaking
-                input_idx,
+                #0,   # no data tweaking
+                #input_idx,
                 -1,  # use internal key of the current input
                 -1,  # use taptree of the current input
                 CCV_MODE_CHECK_OUTPUT,  # all the amount must go to this output
+                OP_4,
+                OP_ROLL, # get input_indices
+                OP_IN_AMOUNT,
+                OP_4, # get output_idx
+                OP_PICK,
+                
+                # shift table for index since we have no OP_LSHIFT
+                OP_DUP,
+                OP_0,
+                OP_EQUAL,
+                OP_IF,
+                  OP_DROP, # drop duplicated index
+                  OP_1,
+                OP_ELSE,
+                  OP_0,
+                  OP_VERIFY,
+                OP_ENDIF,
+
+                OP_OUT_AMOUNT,
+                OP_EQUALVERIFY,
                 OP_CHECKCONTRACTVERIFY,
                 OP_TRUE
             ]))
@@ -463,7 +488,8 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         self.log.info("Done test_ccv ignore_amount=True data non empty")
         self.test_many_to_one(node, wallet)
         self.log.info("Done test_many_to_one")
-        #self.test_send_to_self(node, wallet)
+        self.test_send_to_self(node, wallet)
+        self.log.info("Done test_send_to_self")
         #self.test_deduct_amount(node, wallet)
         #self.test_undefined_modes_opsuccess(node, wallet)
         #self.test_invalid_parameters(node, wallet)
@@ -608,12 +634,12 @@ class CheckContractVerifyTest(BitcoinTestFramework):
 
         amount_sats = 10000
         # am i forcing this output to be spent in a transaction with input 0?
-        input_idx = 0
-        C = SendToSelf(input_idx=input_idx)
+        C = SendToSelf()
 
+        data = bytes()
         res = wallet.send_to(
             from_node=node,
-            scriptPubKey=C.get_tr_info().scriptPubKey,
+            scriptPubKey=C.get_tr_info(data).scriptPubKey,
             amount=amount_sats
         )
         tx_id, n = (res['txid'], res['sent_vout'])
@@ -621,14 +647,14 @@ class CheckContractVerifyTest(BitcoinTestFramework):
         # Create UTXO for C
         tx2 = create_tx(
             inputs=[CcvInput(tx_id, n, amount_sats, C,
-                             None, "send_to_self", [])],
-            outputs=[C.get_tx_out(amount_sats)]
+                             data, "send_to_self", wit_stack=[data])],
+            outputs=[C.get_tx_out(amount_sats, data)]
         )
 
         # broadcast with insufficient output amount; this should fail
         tx2.vout[0].nValue -= 1
         self.assert_broadcast_tx(
-            tx2, err_msg='Incorrect amount for OP_CHECKCONTRACTVERIFY')
+            tx2, err_msg='Script failed an OP_EQUALVERIFY operation')
         tx2.vout[0].nValue += 1
 
         # broadcast with incorrect output script; this should fail
