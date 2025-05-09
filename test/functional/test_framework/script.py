@@ -30,6 +30,7 @@ LOCKTIME_THRESHOLD = 500000000
 ANNEX_TAG = 0x50
 
 LEAF_VERSION_TAPSCRIPT = 0xc0
+LEAF_VERSION_TAPSCRIPT_64BIT = 0x66
 
 def hash160(s):
     return ripemd160(sha256(s))
@@ -66,11 +67,13 @@ class CScriptOp(int):
     @staticmethod
     def encode_op_n(n):
         """Encode a small integer op, returning an opcode"""
-        if not (0 <= n <= 16):
+        if not (-1 <= n <= 16):
             raise ValueError('Integer must be in range 0 <= n <= 16, got %d' % n)
 
         if n == 0:
             return OP_0
+        if n == -1:
+            return OP_1NEGATE
         else:
             return CScriptOp(OP_1 + n - 1)
 
@@ -856,7 +859,7 @@ def TaprootSignatureMsg(txTo, spent_utxos, hash_type, input_index=0, *, scriptpa
 def TaprootSignatureHash(*args, **kwargs):
     return TaggedHash("TapSighash", TaprootSignatureMsg(*args, **kwargs))
 
-def taproot_tree_helper(scripts):
+def taproot_tree_helper(scripts, leaf_version):
     if len(scripts) == 0:
         return ([], bytes())
     if len(scripts) == 1:
@@ -864,9 +867,9 @@ def taproot_tree_helper(scripts):
         script = scripts[0]
         assert not callable(script)
         if isinstance(script, list):
-            return taproot_tree_helper(script)
+            return taproot_tree_helper(script, leaf_version)
         assert isinstance(script, tuple)
-        version = LEAF_VERSION_TAPSCRIPT
+        version = leaf_version
         name = script[0]
         code = script[1]
         if len(script) == 3:
@@ -879,15 +882,15 @@ def taproot_tree_helper(scripts):
         return ([(name, version, code, bytes(), h)], h)
     elif len(scripts) == 2 and callable(scripts[1]):
         # Two entries, and the right one is a function
-        left, left_h = taproot_tree_helper(scripts[0:1])
+        left, left_h = taproot_tree_helper(scripts[0:1], leaf_version)
         right_h = scripts[1](left_h)
         left = [(name, version, script, control + right_h, leaf) for name, version, script, control, leaf in left]
         right = []
     else:
         # Two or more entries: descend into each side
         split_pos = len(scripts) // 2
-        left, left_h = taproot_tree_helper(scripts[0:split_pos])
-        right, right_h = taproot_tree_helper(scripts[split_pos:])
+        left, left_h = taproot_tree_helper(scripts[0:split_pos], leaf_version)
+        right, right_h = taproot_tree_helper(scripts[split_pos:], leaf_version)
         left = [(name, version, script, control + right_h, leaf) for name, version, script, control, leaf in left]
         right = [(name, version, script, control + left_h, leaf) for name, version, script, control, leaf in right]
     if right_h < left_h:
@@ -910,7 +913,7 @@ TaprootInfo = namedtuple("TaprootInfo", "scriptPubKey,internal_pubkey,negflag,tw
 # - merklebranch: the merkle branch to use for this leaf (32*N bytes)
 TaprootLeafInfo = namedtuple("TaprootLeafInfo", "script,version,merklebranch,leaf_hash")
 
-def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
+def taproot_construct(pubkey, leaf_version, scripts=None, treat_internal_as_infinity=False):
     """Construct a tree of Taproot spending conditions
 
     pubkey: a 32-byte xonly pubkey for the internal pubkey (bytes)
@@ -927,7 +930,7 @@ def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
     if scripts is None:
         scripts = []
 
-    ret, h = taproot_tree_helper(scripts)
+    ret, h = taproot_tree_helper(scripts,leaf_version)
     tweak = TaggedHash("TapTweak", pubkey + h)
     if treat_internal_as_infinity:
         tweaked, negated = compute_xonly_pubkey(tweak)
@@ -936,5 +939,11 @@ def taproot_construct(pubkey, scripts=None, treat_internal_as_infinity=False):
     leaves = dict((name, TaprootLeafInfo(script, version, merklebranch, leaf)) for name, version, script, merklebranch, leaf in ret)
     return TaprootInfo(CScript([OP_1, tweaked]), pubkey, negated + 0, tweak, leaves, h, tweaked)
 
-def is_op_success(o):
-    return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
+
+
+
+def is_op_success(o, sig_version):
+    if (sig_version == LEAF_VERSION_TAPSCRIPT or sig_version == LEAF_VERSION_TAPSCRIPT_64BIT):
+        return o == 0x50 or o == 0x62 or o == 0x89 or o == 0x8a or o == 0x8d or o == 0x8e or (o >= 0x7e and o <= 0x81) or (o >= 0x83 and o <= 0x86) or (o >= 0x95 and o <= 0x99) or (o >= 0xbb and o <= 0xfe)
+    else:
+        assert False
