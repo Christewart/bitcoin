@@ -268,6 +268,20 @@ CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const S
     }
 }
 
+CScriptNum GetLocktimeCScriptNum(const valtype& num, const bool fRequireMinimal, const SigVersion& sigversion)
+{
+        switch (sigversion)
+    {
+        case SigVersion::BASE:
+        case SigVersion::WITNESS_V0:
+        case SigVersion::TAPROOT:
+        case SigVersion::TAPSCRIPT:
+            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/5);
+        case SigVersion::TAPSCRIPT_64BIT:
+            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/8);
+    }
+}
+
 namespace {
 /** A data type to abstract out the condition stack during script execution.
  *
@@ -577,7 +591,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // Thus as a special case we tell CScriptNum to accept up
                     // to 5-byte bignums, which are good until 2**39-1, well
                     // beyond the 2**32-1 limit of the nLockTime field itself.
-                    const CScriptNum nLockTime(stacktop(-1), fRequireMinimal, 5);
+                    const CScriptNum nLockTime = GetLocktimeCScriptNum(stacktop(-1), fRequireMinimal, sigversion);;
 
                     // In the rare event that the argument may be < 0 due to
                     // some arithmetic being done first, you can always use
@@ -605,7 +619,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                     // nSequence, like nLockTime, is a 32-bit unsigned integer
                     // field. See the comment in CHECKLOCKTIMEVERIFY regarding
                     // 5-byte numeric operands.
-                    const CScriptNum nSequence(stacktop(-1), fRequireMinimal, 5);
+                    const CScriptNum nSequence = GetLocktimeCScriptNum(stacktop(-1), fRequireMinimal, sigversion);
 
                     // In the rare event that the argument may be < 0 due to
                     // some arithmetic being done first, you can always use
