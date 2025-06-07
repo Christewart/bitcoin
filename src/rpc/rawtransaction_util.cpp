@@ -217,7 +217,7 @@ void ParsePrevouts(const UniValue& prevTxsUnival, FlatSigningProvider* keystore,
                     std::string err("Previous output scriptPubKey mismatch:\n");
                     err = err + ScriptToAsmStr(coin->second.out.scriptPubKey) + "\nvs:\n"+
                         ScriptToAsmStr(scriptPubKey);
-                    throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
+                    //throw JSONRPCError(RPC_DESERIALIZATION_ERROR, err);
                 }
                 Coin newcoin;
                 newcoin.out.scriptPubKey = scriptPubKey;
