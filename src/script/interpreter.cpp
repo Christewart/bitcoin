@@ -262,7 +262,6 @@ CScriptNum GetCScriptNum(const valtype& num, const bool fRequireMinimal, const S
         case SigVersion::WITNESS_V0:
         case SigVersion::TAPROOT:
         case SigVersion::TAPSCRIPT:
-            return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/4);
         case SigVersion::TAPSCRIPT_64BIT:
             return CScriptNum(num,fRequireMinimal,/*nMaximumSize=*/8);
     }
