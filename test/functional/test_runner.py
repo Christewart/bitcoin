@@ -151,6 +151,7 @@ BASE_SCRIPTS = [
     'wallet_listreceivedby.py',
     'wallet_abandonconflict.py',
     'feature_inout_amount.py',
+    'feature_ctv_amount.py',
     'feature_reindex.py',
     'feature_reindex_readonly.py',
     'wallet_labels.py',
