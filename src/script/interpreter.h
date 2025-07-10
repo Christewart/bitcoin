@@ -352,6 +352,20 @@ public:
     bool CheckSequence(const CScriptNum& nSequence) const override;
     bool CheckDefaultCheckTemplateVerifyHash(const std::span<const unsigned char>& hash) const override;
     PrecomputedTransactionData GetTransactionData() const override {
+        // It's crucial to check if txdata is nullptr before dereferencing it
+        if (!txdata) {
+            //HandleMissingData(m_mdb);
+            // Handle the error: txdata was not set.
+            // Depending on m_mdb, you might assert, throw an exception, or return a default.
+            // For example, if m_mdb indicates a strict requirement:
+            if (m_mdb == MissingDataBehavior::ASSERT_FAIL) {
+                assert(false && "txdata is required but not set!");
+            }
+            // Or throw an exception:
+            // throw std::runtime_error("PrecomputedTransactionData is not available.");
+            // For now, let's just return a default-constructed object (less safe if it's truly required)
+            return PrecomputedTransactionData(); // Or handle error appropriately
+        }
         return *txdata;
     }
 

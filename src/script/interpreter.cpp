@@ -12,6 +12,7 @@
 #include <script/script.h>
 #include <script/sigversion.h>
 #include <uint256.h>
+#include <iostream>
 
 typedef std::vector<unsigned char> valtype;
 
@@ -1137,6 +1138,7 @@ bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& 
                 case OP_HASH160:
                 case OP_HASH256:
                 {
+                    
                     // (in -- hash)
                     if (stack.size() < 1)
                         return set_error(serror, SCRIPT_ERR_INVALID_STACK_OPERATION);
