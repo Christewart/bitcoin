@@ -2411,6 +2411,7 @@ void PeerManagerImpl::ProcessGetData(CNode& pfrom, Peer& peer, const std::atomic
         if (auto tx{FindTxForGetData(*tx_relay, ToGenTxid(inv))}) {
             // WTX and WITNESS_TX imply we serialize with witness
             const auto maybe_with_witness = (inv.IsMsgTx() ? TX_NO_WITNESS : TX_WITH_WITNESS);
+            LogDebug(BCLog::NET, "sending tx inv peer=%d\n", pfrom.GetId());
             MakeAndPushMessage(pfrom, NetMsgType::TX, maybe_with_witness(*tx));
             m_mempool.RemoveUnbroadcastTx(tx->GetHash());
         } else {
