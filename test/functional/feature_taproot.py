@@ -728,7 +728,7 @@ def spenders_taproot_active():
 
     # Implement a test case that detects validation logic which maps invalid public keys to the
     # point at infinity in the tweaking logic.
-    tap = taproot_construct(invalid_pub, [("true", CScript([OP_1]))], treat_internal_as_infinity=True)
+    tap = taproot_construct(invalid_pub, [("true", CScript([OP_1]), LEAF_VERSION_TAPSCRIPT)], treat_internal_as_infinity=True)
     add_spender(spenders, "output/invalid_x", tap=tap, key_tweaked=tap.tweak, failure={"leaf": "true", "inputs": []}, **ERR_WITNESS_PROGRAM_MISMATCH)
 
     # Do the same thing without invalid point, to make sure there is no mistake in the test logic.
@@ -1332,9 +1332,9 @@ def sample_spenders():
     # Create a list of scripts which will be built into a taptree
     scripts = [
         # leaf label, followed by CScript
-        ("2byte_push", CScript([OP_DROP, b'\xaa\xaa'])),
-        ("nonstd_2byte_push", CScript.fromhex("4c02aaaa")),
-        ("dummyleaf", CScript([])),
+        ("2byte_push", CScript([OP_DROP, b'\xaa\xaa']), LEAF_VERSION_TAPSCRIPT),
+        ("nonstd_2byte_push", CScript.fromhex("4c02aaaa"), LEAF_VERSION_TAPSCRIPT),
+        ("dummyleaf", CScript([]), LEAF_VERSION_TAPSCRIPT),
     ]
 
     # Build TaprootInfo using scripts and appropriate pubkey for output creation

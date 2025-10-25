@@ -864,11 +864,9 @@ def taproot_tree_helper(scripts):
         if isinstance(script, list):
             return taproot_tree_helper(script)
         assert isinstance(script, tuple)
-        version = LEAF_VERSION_TAPSCRIPT
         name = script[0]
         code = script[1]
-        if len(script) == 3:
-            version = script[2]
+        version = script[2]
         assert version & 1 == 0
         assert isinstance(code, bytes)
         h = TaggedHash("TapLeaf", bytes([version]) + ser_string(code))
