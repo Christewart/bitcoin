@@ -11,6 +11,8 @@
 import enum
 import unittest
 
+from test_framework.script import LEAF_VERSION_TAPSCRIPT
+
 from .script import (
     CScript,
     OP_0,
@@ -56,7 +58,7 @@ def create_deterministic_address_bcrt1_p2tr_op_true(explicit_internal_key=None):
     Returns a tuple with the generated address and the TaprootInfo object.
     """
     internal_key = explicit_internal_key or (1).to_bytes(32, 'big')
-    taproot_info = taproot_construct(internal_key, [("only-path", CScript([OP_TRUE]))])
+    taproot_info = taproot_construct(internal_key, [("only-path", CScript([OP_TRUE]), LEAF_VERSION_TAPSCRIPT)])
     address = output_key_to_p2tr(taproot_info.output_pubkey)
     if explicit_internal_key is None:
         assert_equal(address, 'bcrt1p9yfmy5h72durp7zrhlw9lf7jpwjgvwdg0jr0lqmmjtgg83266lqsekaqka')

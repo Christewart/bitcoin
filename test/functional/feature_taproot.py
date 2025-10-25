@@ -728,11 +728,11 @@ def spenders_taproot_active():
 
     # Implement a test case that detects validation logic which maps invalid public keys to the
     # point at infinity in the tweaking logic.
-    tap = taproot_construct(invalid_pub, [("true", CScript([OP_1]))], treat_internal_as_infinity=True)
+    tap = taproot_construct(invalid_pub, [("true", CScript([OP_1]), LEAF_VERSION_TAPSCRIPT)], treat_internal_as_infinity=True)
     add_spender(spenders, "output/invalid_x", tap=tap, key_tweaked=tap.tweak, failure={"leaf": "true", "inputs": []}, **ERR_WITNESS_PROGRAM_MISMATCH)
 
     # Do the same thing without invalid point, to make sure there is no mistake in the test logic.
-    tap = taproot_construct(pubs[0], [("true", CScript([OP_1]))])
+    tap = taproot_construct(pubs[0], [("true", CScript([OP_1]), LEAF_VERSION_TAPSCRIPT)])
     add_spender(spenders, "output/invalid_x_mock", tap=tap, key=secs[0], leaf="true", inputs=[])
 
     # == Tests for signature hashing ==
@@ -751,7 +751,7 @@ def spenders_taproot_active():
             add_spender(spenders, "sighash/purepk", tap=tap, key=secs[0], **common, **SIGHASH_BITFLIP, **ERR_SCHNORR_SIG)
 
             # Pubkey/P2PK script combination
-            scripts = [("s0", CScript(random_checksig_style(pubs[1])))]
+            scripts = [("s0", CScript(random_checksig_style(pubs[1])), LEAF_VERSION_TAPSCRIPT)]
             tap = taproot_construct(pubs[0], scripts)
             add_spender(spenders, "sighash/keypath_hashtype_%x" % hashtype, tap=tap, key=secs[0], **common, **SIGHASH_BITFLIP, **ERR_SCHNORR_SIG)
             add_spender(spenders, "sighash/scriptpath_hashtype_%x" % hashtype, tap=tap, leaf="s0", key=secs[1], **common, **SINGLE_SIG, **SIGHASH_BITFLIP, **ERR_SCHNORR_SIG)
@@ -765,9 +765,9 @@ def spenders_taproot_active():
         hashtype = lambda _: random.choice(VALID_SIGHASHES_TAPROOT)
         common = {"annex": annex, "hashtype": hashtype, "standard": no_annex}
         scripts = [
-            ("pk_codesep", CScript(random_checksig_style(pubs[1]) + bytes([OP_CODESEPARATOR]))),  # codesep after checksig
-            ("codesep_pk", CScript(bytes([OP_CODESEPARATOR]) + random_checksig_style(pubs[1]))),  # codesep before checksig
-            ("branched_codesep", CScript([random.randbytes(random.randrange(2, 511)), OP_DROP, OP_IF, OP_CODESEPARATOR, pubs[0], OP_ELSE, OP_CODESEPARATOR, pubs[1], OP_ENDIF, OP_CHECKSIG])),  # branch dependent codesep
+            ("pk_codesep", CScript(random_checksig_style(pubs[1]) + bytes([OP_CODESEPARATOR])),LEAF_VERSION_TAPSCRIPT),  # codesep after checksig
+            ("codesep_pk", CScript(bytes([OP_CODESEPARATOR]) + random_checksig_style(pubs[1])),LEAF_VERSION_TAPSCRIPT),  # codesep before checksig
+            ("branched_codesep", CScript([random.randbytes(random.randrange(2, 511)), OP_DROP, OP_IF, OP_CODESEPARATOR, pubs[0], OP_ELSE, OP_CODESEPARATOR, pubs[1], OP_ENDIF, OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),  # branch dependent codesep
             # Note that the first data push in the "branched_codesep" script has the purpose of
             # randomizing the sighash, both by varying script size and content. In order to
             # avoid MINIMALDATA script verification errors caused by not-minimal-encoded data
@@ -807,11 +807,11 @@ def spenders_taproot_active():
     # Test aspects of signatures with unusual lengths
     for hashtype in [SIGHASH_DEFAULT, random.choice(VALID_SIGHASHES_TAPROOT)]:
         scripts = [
-            ("csv", CScript([pubs[2], OP_CHECKSIGVERIFY, OP_1])),
-            ("cs_pos", CScript([pubs[2], OP_CHECKSIG])),
-            ("csa_pos", CScript([OP_0, pubs[2], OP_CHECKSIGADD, OP_1, OP_EQUAL])),
-            ("cs_neg", CScript([pubs[2], OP_CHECKSIG, OP_NOT])),
-            ("csa_neg", CScript([OP_2, pubs[2], OP_CHECKSIGADD, OP_2, OP_EQUAL]))
+            ("csv", CScript([pubs[2], OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
+            ("cs_pos", CScript([pubs[2], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
+            ("csa_pos", CScript([OP_0, pubs[2], OP_CHECKSIGADD, OP_1, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
+            ("cs_neg", CScript([pubs[2], OP_CHECKSIG, OP_NOT]),LEAF_VERSION_TAPSCRIPT),
+            ("csa_neg", CScript([OP_2, pubs[2], OP_CHECKSIGADD, OP_2, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT)
         ]
         random.shuffle(scripts)
         tap = taproot_construct(pubs[3], scripts)
@@ -853,7 +853,7 @@ def spenders_taproot_active():
                     elif witlen > 32:
                         prog += bytes([0 for _ in range(witlen - 32)])
                     return CScript([CScriptOp.encode_op_n(witver), prog])
-                scripts = [("s0", CScript([pubs[0], OP_CHECKSIG])), ("dummy", CScript([OP_RETURN]))]
+                scripts = [("s0", CScript([pubs[0], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT), ("dummy", CScript([OP_RETURN]),LEAF_VERSION_TAPSCRIPT)]
                 tap = taproot_construct(pubs[1], scripts)
                 if not p2sh and witver == 1 and witlen == 32:
                     add_spender(spenders, "applic/keypath", p2sh=p2sh, spk_mutate_pre_p2sh=mutate, tap=tap, key=secs[1], **SIGHASH_BITFLIP, **ERR_SCHNORR_SIG)
@@ -886,7 +886,7 @@ def spenders_taproot_active():
         lambda h: (int.from_bytes(h, 'little') ^ (1 << random.randrange(256))).to_bytes(32, 'little')
     ]
     # Start with a tree of that has depth 1 for "128deep" and depth 2 for "129deep".
-    scripts = [("128deep", CScript([pubs[0], OP_CHECKSIG])), [("129deep", CScript([pubs[0], OP_CHECKSIG])), random.choice(PARTNER_MERKLE_FN)]]
+    scripts = [("128deep", CScript([pubs[0], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT), [("129deep", CScript([pubs[0], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT), random.choice(PARTNER_MERKLE_FN)]]
     # Add 127 nodes on top of that tree, so that "128deep" and "129deep" end up at their designated depths.
     for _ in range(127):
         scripts = [scripts, random.choice(PARTNER_MERKLE_FN)]
@@ -906,7 +906,7 @@ def spenders_taproot_active():
     # Test that truncating the control block invalidates it.
     add_spender(spenders, "spendpath/trunclongcontrol", tap=tap, leaf="128deep", **SINGLE_SIG, key=secs[0], failure={"controlblock": lambda ctx: default_merklebranch(ctx)[0:random.randrange(1, 32)]}, **ERR_TAPROOT_WRONG_CONTROL_SIZE)
 
-    scripts = [("s", CScript([pubs[0], OP_CHECKSIG]))]
+    scripts = [("s", CScript([pubs[0], OP_CHECKSIG]), LEAF_VERSION_TAPSCRIPT)]
     tap = taproot_construct(pubs[1], scripts)
     # Test that adding garbage to the control block invalidates it.
     add_spender(spenders, "spendpath/padshortcontrol", tap=tap, leaf="s", **SINGLE_SIG, key=secs[0], failure={"controlblock": lambda ctx: default_controlblock(ctx) + random.randbytes(random.randrange(1, 32))}, **ERR_TAPROOT_WRONG_CONTROL_SIZE)
@@ -948,83 +948,83 @@ def spenders_taproot_active():
     # Various BIP342 features
     scripts = [
         # 0) drop stack element and OP_CHECKSIG
-        ("t0", CScript([OP_DROP, pubs[1], OP_CHECKSIG])),
+        ("t0", CScript([OP_DROP, pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 1) normal OP_CHECKSIG
-        ("t1", CScript([pubs[1], OP_CHECKSIG])),
+        ("t1", CScript([pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 2) normal OP_CHECKSIGVERIFY
-        ("t2", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1])),
+        ("t2", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 3) Hypothetical OP_CHECKMULTISIG script that takes a single sig as input
-        ("t3", CScript([OP_0, OP_SWAP, OP_1, pubs[1], OP_1, OP_CHECKMULTISIG])),
+        ("t3", CScript([OP_0, OP_SWAP, OP_1, pubs[1], OP_1, OP_CHECKMULTISIG]),LEAF_VERSION_TAPSCRIPT),
         # 4) Hypothetical OP_CHECKMULTISIGVERIFY script that takes a single sig as input
-        ("t4", CScript([OP_0, OP_SWAP, OP_1, pubs[1], OP_1, OP_CHECKMULTISIGVERIFY, OP_1])),
+        ("t4", CScript([OP_0, OP_SWAP, OP_1, pubs[1], OP_1, OP_CHECKMULTISIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 5) OP_IF script that needs a true input
-        ("t5", CScript([OP_IF, pubs[1], OP_CHECKSIG, OP_ELSE, OP_RETURN, OP_ENDIF])),
+        ("t5", CScript([OP_IF, pubs[1], OP_CHECKSIG, OP_ELSE, OP_RETURN, OP_ENDIF]),LEAF_VERSION_TAPSCRIPT),
         # 6) OP_NOTIF script that needs a true input
-        ("t6", CScript([OP_NOTIF, OP_RETURN, OP_ELSE, pubs[1], OP_CHECKSIG, OP_ENDIF])),
+        ("t6", CScript([OP_NOTIF, OP_RETURN, OP_ELSE, pubs[1], OP_CHECKSIG, OP_ENDIF]),LEAF_VERSION_TAPSCRIPT),
         # 7) OP_CHECKSIG with an empty key
-        ("t7", CScript([OP_0, OP_CHECKSIG])),
+        ("t7", CScript([OP_0, OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 8) OP_CHECKSIGVERIFY with an empty key
-        ("t8", CScript([OP_0, OP_CHECKSIGVERIFY, OP_1])),
+        ("t8", CScript([OP_0, OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 9) normal OP_CHECKSIGADD that also ensures return value is correct
-        ("t9", CScript([csa_low_val, pubs[1], OP_CHECKSIGADD, csa_low_result, OP_EQUAL])),
+        ("t9", CScript([csa_low_val, pubs[1], OP_CHECKSIGADD, csa_low_result, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 10) OP_CHECKSIGADD with empty key
-        ("t10", CScript([csa_low_val, OP_0, OP_CHECKSIGADD, csa_low_result, OP_EQUAL])),
+        ("t10", CScript([csa_low_val, OP_0, OP_CHECKSIGADD, csa_low_result, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 11) OP_CHECKSIGADD with missing counter stack element
-        ("t11", CScript([pubs[1], OP_CHECKSIGADD, OP_1, OP_EQUAL])),
+        ("t11", CScript([pubs[1], OP_CHECKSIGADD, OP_1, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 12) OP_CHECKSIG that needs invalid signature
-        ("t12", CScript([pubs[1], OP_CHECKSIGVERIFY, pubs[0], OP_CHECKSIG, OP_NOT])),
+        ("t12", CScript([pubs[1], OP_CHECKSIGVERIFY, pubs[0], OP_CHECKSIG, OP_NOT]),LEAF_VERSION_TAPSCRIPT),
         # 13) OP_CHECKSIG with empty key that needs invalid signature
-        ("t13", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_CHECKSIG, OP_NOT])),
+        ("t13", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_CHECKSIG, OP_NOT]),LEAF_VERSION_TAPSCRIPT),
         # 14) OP_CHECKSIGADD that needs invalid signature
-        ("t14", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, pubs[0], OP_CHECKSIGADD, OP_NOT])),
+        ("t14", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, pubs[0], OP_CHECKSIGADD, OP_NOT]),LEAF_VERSION_TAPSCRIPT),
         # 15) OP_CHECKSIGADD with empty key that needs invalid signature
-        ("t15", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_0, OP_CHECKSIGADD, OP_NOT])),
+        ("t15", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_0, OP_CHECKSIGADD, OP_NOT]),LEAF_VERSION_TAPSCRIPT),
         # 16) OP_CHECKSIG with unknown pubkey type
-        ("t16", CScript([OP_1, OP_CHECKSIG])),
+        ("t16", CScript([OP_1, OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 17) OP_CHECKSIGADD with unknown pubkey type
-        ("t17", CScript([OP_0, OP_1, OP_CHECKSIGADD])),
+        ("t17", CScript([OP_0, OP_1, OP_CHECKSIGADD]),LEAF_VERSION_TAPSCRIPT),
         # 18) OP_CHECKSIGVERIFY with unknown pubkey type
-        ("t18", CScript([OP_1, OP_CHECKSIGVERIFY, OP_1])),
+        ("t18", CScript([OP_1, OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 19) script longer than 10000 bytes and over 201 non-push opcodes
-        ("t19", CScript([OP_0, OP_0, OP_2DROP] * 10001 + [pubs[1], OP_CHECKSIG])),
+        ("t19", CScript([OP_0, OP_0, OP_2DROP] * 10001 + [pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 20) OP_CHECKSIGVERIFY with empty key
-        ("t20", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_0, OP_CHECKSIGVERIFY, OP_1])),
+        ("t20", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_0, OP_0, OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 21) Script that grows the stack to 1000 elements
-        ("t21", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1] + [OP_DUP] * 999 + [OP_DROP] * 999)),
+        ("t21", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1] + [OP_DUP] * 999 + [OP_DROP] * 999),LEAF_VERSION_TAPSCRIPT),
         # 22) Script that grows the stack to 1001 elements
-        ("t22", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1] + [OP_DUP] * 1000 + [OP_DROP] * 1000)),
+        ("t22", CScript([pubs[1], OP_CHECKSIGVERIFY, OP_1] + [OP_DUP] * 1000 + [OP_DROP] * 1000),LEAF_VERSION_TAPSCRIPT),
         # 23) Script that expects an input stack of 1000 elements
-        ("t23", CScript([OP_DROP] * 999 + [pubs[1], OP_CHECKSIG])),
+        ("t23", CScript([OP_DROP] * 999 + [pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 24) Script that expects an input stack of 1001 elements
-        ("t24", CScript([OP_DROP] * 1000 + [pubs[1], OP_CHECKSIG])),
+        ("t24", CScript([OP_DROP] * 1000 + [pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 25) Script that pushes a MAX_SCRIPT_ELEMENT_SIZE-bytes element
-        ("t25", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE), OP_DROP, pubs[1], OP_CHECKSIG])),
+        ("t25", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE), OP_DROP, pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 26) Script that pushes a (MAX_SCRIPT_ELEMENT_SIZE+1)-bytes element
-        ("t26", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, pubs[1], OP_CHECKSIG])),
+        ("t26", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 27) CHECKSIGADD that must fail because numeric argument number is >4 bytes
-        ("t27", CScript([CScriptNum(OVERSIZE_NUMBER), pubs[1], OP_CHECKSIGADD])),
+        ("t27", CScript([CScriptNum(OVERSIZE_NUMBER), pubs[1], OP_CHECKSIGADD]),LEAF_VERSION_TAPSCRIPT),
         # 28) Pushes random CScriptNum value, checks OP_CHECKSIGADD result
-        ("t28", CScript([csa_high_val, pubs[1], OP_CHECKSIGADD, csa_high_result, OP_EQUAL])),
+        ("t28", CScript([csa_high_val, pubs[1], OP_CHECKSIGADD, csa_high_result, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 29) CHECKSIGADD that succeeds with proper sig because numeric argument number is <=4 bytes
-        ("t29", CScript([CScriptNum(OVERSIZE_NUMBER-1), pubs[1], OP_CHECKSIGADD])),
+        ("t29", CScript([CScriptNum(OVERSIZE_NUMBER-1), pubs[1], OP_CHECKSIGADD]),LEAF_VERSION_TAPSCRIPT),
         # 30) Variant of t1 with "normal" 33-byte pubkey
-        ("t30", CScript([b'\x03' + pubs[1], OP_CHECKSIG])),
+        ("t30", CScript([b'\x03' + pubs[1], OP_CHECKSIG]),LEAF_VERSION_TAPSCRIPT),
         # 31) Variant of t2 with "normal" 33-byte pubkey
-        ("t31", CScript([b'\x02' + pubs[1], OP_CHECKSIGVERIFY, OP_1])),
+        ("t31", CScript([b'\x02' + pubs[1], OP_CHECKSIGVERIFY, OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 32) Variant of t28 with "normal" 33-byte pubkey
-        ("t32", CScript([csa_high_val, b'\x03' + pubs[1], OP_CHECKSIGADD, csa_high_result, OP_EQUAL])),
+        ("t32", CScript([csa_high_val, b'\x03' + pubs[1], OP_CHECKSIGADD, csa_high_result, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 33) 999-of-999 multisig
-        ("t33", CScript(big_scriptops[:1998] + [OP_1])),
+        ("t33", CScript(big_scriptops[:1998] + [OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 34) 1000-of-1000 multisig
-        ("t34", CScript(big_scriptops[:2000] + [OP_1])),
+        ("t34", CScript(big_scriptops[:2000] + [OP_1]),LEAF_VERSION_TAPSCRIPT),
         # 35) Variant of t9 that uses a non-minimally encoded input arg
-        ("t35", CScript([bytes([csa_low_val]), pubs[1], OP_CHECKSIGADD, csa_low_result, OP_EQUAL])),
+        ("t35", CScript([bytes([csa_low_val]), pubs[1], OP_CHECKSIGADD, csa_low_result, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT),
         # 36) Empty script
-        ("t36", CScript([])),
+        ("t36", CScript([]),LEAF_VERSION_TAPSCRIPT),
     ]
     # Add many dummies to test huge trees
     for j in range(100000):
-        scripts.append((None, CScript([OP_RETURN, random.randrange(100000)])))
+        scripts.append((None, CScript([OP_RETURN, random.randrange(100000)]),LEAF_VERSION_TAPSCRIPT))
     random.shuffle(scripts)
     tap = taproot_construct(pubs[0], scripts)
     common = {
@@ -1132,7 +1132,7 @@ def spenders_taproot_active():
                     dummylen = 0
                     while not predict_sigops_ratio(n, dummylen):
                         dummylen += 1
-                    scripts = [("s", fn(n, pubkey)[0])]
+                    scripts = [("s", fn(n, pubkey)[0],LEAF_VERSION_TAPSCRIPT)]
                     for _ in range(merkledepth):
                         scripts = [scripts, random.choice(PARTNER_MERKLE_FN)]
                     tap = taproot_construct(pubs[0], scripts)
@@ -1145,15 +1145,15 @@ def spenders_taproot_active():
             # Skip the defined LEAF_VERSION_TAPSCRIPT, and the ANNEX_TAG which is not usable as leaf version
             continue
         scripts = [
-            ("bare_c0", CScript([OP_NOP])),
+            ("bare_c0", CScript([OP_NOP]),LEAF_VERSION_TAPSCRIPT),
             ("bare_unkver", CScript([OP_NOP]), leafver),
-            ("return_c0", CScript([OP_RETURN])),
+            ("return_c0", CScript([OP_RETURN]),LEAF_VERSION_TAPSCRIPT),
             ("return_unkver", CScript([OP_RETURN]), leafver),
-            ("undecodable_c0", CScript([OP_PUSHDATA1])),
+            ("undecodable_c0", CScript([OP_PUSHDATA1]),LEAF_VERSION_TAPSCRIPT),
             ("undecodable_unkver", CScript([OP_PUSHDATA1]), leafver),
-            ("bigpush_c0", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP])),
+            ("bigpush_c0", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP]),LEAF_VERSION_TAPSCRIPT),
             ("bigpush_unkver", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP]), leafver),
-            ("1001push_c0", CScript([OP_0] * 1001)),
+            ("1001push_c0", CScript([OP_0] * 1001),LEAF_VERSION_TAPSCRIPT),
             ("1001push_unkver", CScript([OP_0] * 1001), leafver),
         ]
         random.shuffle(scripts)
@@ -1172,19 +1172,19 @@ def spenders_taproot_active():
         if not is_op_success(opcode):
             continue
         scripts = [
-            ("bare_success", CScript([opcode])),
-            ("bare_nop", CScript([OP_NOP])),
-            ("unexecif_success", CScript([OP_0, OP_IF, opcode, OP_ENDIF])),
-            ("unexecif_nop", CScript([OP_0, OP_IF, OP_NOP, OP_ENDIF])),
-            ("return_success", CScript([OP_RETURN, opcode])),
-            ("return_nop", CScript([OP_RETURN, OP_NOP])),
-            ("undecodable_success", CScript([opcode, OP_PUSHDATA1])),
-            ("undecodable_nop", CScript([OP_NOP, OP_PUSHDATA1])),
-            ("undecodable_bypassed_success", CScript([OP_PUSHDATA1, OP_2, opcode])),
-            ("bigpush_success", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, opcode])),
-            ("bigpush_nop", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, OP_NOP])),
-            ("1001push_success", CScript([OP_0] * 1001 + [opcode])),
-            ("1001push_nop", CScript([OP_0] * 1001 + [OP_NOP])),
+            ("bare_success", CScript([opcode]),LEAF_VERSION_TAPSCRIPT),
+            ("bare_nop", CScript([OP_NOP]),LEAF_VERSION_TAPSCRIPT),
+            ("unexecif_success", CScript([OP_0, OP_IF, opcode, OP_ENDIF]),LEAF_VERSION_TAPSCRIPT),
+            ("unexecif_nop", CScript([OP_0, OP_IF, OP_NOP, OP_ENDIF]),LEAF_VERSION_TAPSCRIPT),
+            ("return_success", CScript([OP_RETURN, opcode]),LEAF_VERSION_TAPSCRIPT),
+            ("return_nop", CScript([OP_RETURN, OP_NOP]),LEAF_VERSION_TAPSCRIPT),
+            ("undecodable_success", CScript([opcode, OP_PUSHDATA1]),LEAF_VERSION_TAPSCRIPT),
+            ("undecodable_nop", CScript([OP_NOP, OP_PUSHDATA1]),LEAF_VERSION_TAPSCRIPT),
+            ("undecodable_bypassed_success", CScript([OP_PUSHDATA1, OP_2, opcode]),LEAF_VERSION_TAPSCRIPT),
+            ("bigpush_success", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, opcode]),LEAF_VERSION_TAPSCRIPT),
+            ("bigpush_nop", CScript([random.randbytes(MAX_SCRIPT_ELEMENT_SIZE+1), OP_DROP, OP_NOP]),LEAF_VERSION_TAPSCRIPT),
+            ("1001push_success", CScript([OP_0] * 1001 + [opcode]),LEAF_VERSION_TAPSCRIPT),
+            ("1001push_nop", CScript([OP_0] * 1001 + [OP_NOP]),LEAF_VERSION_TAPSCRIPT),
         ]
         random.shuffle(scripts)
         tap = taproot_construct(pubs[0], scripts)
@@ -1203,8 +1203,8 @@ def spenders_taproot_active():
         if is_op_success(opcode):
             continue
         scripts = [
-            ("normal", CScript([OP_RETURN, opcode] + [OP_NOP] * 75)),
-            ("op_success", CScript([OP_RETURN, CScriptOp(0x50)]))
+            ("normal", CScript([OP_RETURN, opcode] + [OP_NOP] * 75),LEAF_VERSION_TAPSCRIPT),
+            ("op_success", CScript([OP_RETURN, CScriptOp(0x50)]),LEAF_VERSION_TAPSCRIPT)
         ]
         tap = taproot_construct(pubs[0], scripts)
         add_spender(spenders, "alwaysvalid/notsuccessx", tap=tap, leaf="op_success", inputs=[], standard=False, failure={"leaf": "normal"}) # err_msg differs based on opcode
@@ -1212,7 +1212,7 @@ def spenders_taproot_active():
     # == Test case for https://github.com/bitcoin/bitcoin/issues/24765 ==
 
     zero_fn = lambda h: bytes([0 for _ in range(32)])
-    tap = taproot_construct(pubs[0], [("leaf", CScript([pubs[1], OP_CHECKSIG, pubs[1], OP_CHECKSIGADD, OP_2, OP_EQUAL])), zero_fn])
+    tap = taproot_construct(pubs[0], [("leaf", CScript([pubs[1], OP_CHECKSIG, pubs[1], OP_CHECKSIGADD, OP_2, OP_EQUAL]),LEAF_VERSION_TAPSCRIPT), zero_fn])
     add_spender(spenders, "case24765", tap=tap, leaf="leaf", inputs=[getter("sign"), getter("sign")], key=secs[1], no_fail=True)
 
     # == Legacy tests ==
@@ -1296,7 +1296,7 @@ def spenders_taproot_active():
                 inputs.append(getter("sign", codeseppos=codeseppos, hashtype=op))
         inputs.reverse()
         script = CScript(script)
-        tap = taproot_construct(pubs[0], [("leaf", script)])
+        tap = taproot_construct(pubs[0], [("leaf", script,LEAF_VERSION_TAPSCRIPT)])
         add_spender(spenders, "sighashcache/taproot", tap=tap, leaf="leaf", inputs=inputs, standard=True, key=secs[1], no_fail=True)
 
     return spenders
@@ -1311,7 +1311,7 @@ def spenders_taproot_nonstandard():
     pub, _ = compute_xonly_pubkey(sec)
     scripts = [
         ("future_leaf", CScript([pub, OP_CHECKSIG]), 0xc2),
-        ("op_success", CScript([pub, OP_CHECKSIG, OP_0, OP_IF, CScriptOp(0x50), OP_ENDIF])),
+        ("op_success", CScript([pub, OP_CHECKSIG, OP_0, OP_IF, CScriptOp(0x50), OP_ENDIF]),LEAF_VERSION_TAPSCRIPT),
     ]
     tap = taproot_construct(pub, scripts)
 
@@ -1332,9 +1332,9 @@ def sample_spenders():
     # Create a list of scripts which will be built into a taptree
     scripts = [
         # leaf label, followed by CScript
-        ("2byte_push", CScript([OP_DROP, b'\xaa\xaa'])),
-        ("nonstd_2byte_push", CScript.fromhex("4c02aaaa")),
-        ("dummyleaf", CScript([])),
+        ("2byte_push", CScript([OP_DROP, b'\xaa\xaa']), LEAF_VERSION_TAPSCRIPT),
+        ("nonstd_2byte_push", CScript.fromhex("4c02aaaa"), LEAF_VERSION_TAPSCRIPT),
+        ("dummyleaf", CScript([]), LEAF_VERSION_TAPSCRIPT),
     ]
 
     # Build TaprootInfo using scripts and appropriate pubkey for output creation

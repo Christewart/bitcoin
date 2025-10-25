@@ -14,6 +14,7 @@ from test_framework.test_framework import BitcoinTestFramework
 from test_framework.util import assert_equal
 from test_framework.descriptors import descsum_create
 from test_framework.script import (
+    LEAF_VERSION_TAPSCRIPT,
     CScript,
     MAX_PUBKEYS_PER_MULTI_A,
     OP_CHECKSIG,
@@ -164,7 +165,7 @@ def key(hex_key):
 
 def pk(hex_key):
     """Construct a script expression for taproot_construct for pk(hex_key)."""
-    return (None, CScript([bytes.fromhex(hex_key), OP_CHECKSIG]))
+    return (None, CScript([bytes.fromhex(hex_key), OP_CHECKSIG]), LEAF_VERSION_TAPSCRIPT)
 
 def multi_a(k, hex_keys, sort=False):
     """Construct a script expression for taproot_construct for a multi_a script."""
@@ -175,7 +176,7 @@ def multi_a(k, hex_keys, sort=False):
     for i in range(1, len(hex_keys)):
         ops += [xkeys[i], OP_CHECKSIGADD]
     ops += [k, OP_NUMEQUAL]
-    return (None, CScript(ops))
+    return (None, CScript(ops), LEAF_VERSION_TAPSCRIPT)
 
 def compute_taproot_address(pubkey, scripts):
     """Compute the address for a taproot output with given inner key and scripts."""
